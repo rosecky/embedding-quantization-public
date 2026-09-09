@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Browser query encoder (wllama)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body { font-family: system-ui, sans-serif; margin: 1.5rem; max-width: 70rem; color: #222; }
+  h1 { font-size: 1.3rem; }
+  code, pre { font-family: ui-monospace, Consolas, monospace; font-size: 0.85rem; }
+  #cfg { background: #f4f4f4; padding: .6rem .8rem; border-radius: 4px; white-space: pre-wrap; }
+  #log { background: #111; color: #cfc; padding: .6rem .8rem; border-radius: 4px; height: 24rem; overflow-y: auto; white-space: pre-wrap; }
+  #summary { margin-top: 1rem; }
+  table { border-collapse: collapse; }
+  td, th { border: 1px solid #ccc; padding: .2rem .6rem; text-align: right; }
+  th:first-child, td:first-child { text-align: left; }
+  button { font-size: 1rem; padding: .3rem .9rem; }
+  .warn { color: #b00; }
+</style>
+</head>
+<body>
+<h1>Quantized query encoder in the browser (llama.cpp / WebAssembly via wllama)</h1>
+<p>Loads a GGUF query encoder, encodes the SciFact test queries one at a time and scores them against the fp32 document
+index in JavaScript. URL parameters: <code>model</code> (path relative to the repo root), <code>threads</code>
+(default <code>navigator.hardwareConcurrency</code>; <code>1</code> = single-thread build), <code>ctx</code> (512),
+<code>n</code> (300), <code>warmup</code> (3), <code>tag</code>, <code>auto</code> (1 = start immediately).</p>
+<pre id="cfg">reading configuration…</pre>
+<p><button id="start" disabled>Start</button> <span id="status"></span></p>
+<div id="log"></div>
+<div id="summary"></div>
+<script type="module" src="./bench.js"></script>
+</body>
+</html>

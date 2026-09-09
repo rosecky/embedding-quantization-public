@@ -1,0 +1,1 @@
+@wllama/wllama 3.6.1 (libllama b10663-83d855c), MIT. Files copied verbatim from the npm package: esm/index.js -> index.js, esm/wasm/wllama.wasm -> wllama.wasm.

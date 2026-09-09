@@ -1,0 +1,19 @@
+# Cloudflare Pages headers (https://developers.cloudflare.com/pages/configuration/headers/)
+# COOP + COEP make the page cross-origin isolated -> SharedArrayBuffer -> the multi-threaded WebAssembly build.
+/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp
+  Cross-Origin-Resource-Policy: same-origin
+  X-Content-Type-Options: nosniff
+
+# vendored wllama (index.js + wllama.wasm), versioned directory
+/vendor/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# exported data (fp16 index, documents, test queries, meta); regenerate + purge the Pages cache when they change
+/data/*
+  Cache-Control: public, max-age=2592000
+
+# the model in 24 MiB byte chunks + manifest (same host, so an Access policy on the site gates them too)
+/model/*
+  Cache-Control: public, max-age=2592000

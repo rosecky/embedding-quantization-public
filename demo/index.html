@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Thinletter demo: scientific search with a 192 MiB query encoder in your browser</title>
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<header>
+  <h1>Thinletter demo <span class="sub"><span id="h1-ds">Scientific</span> search with a 2-bit query encoder, in your browser</span></h1>
+  <p class="lead">
+    The <strong>query encoder runs in your browser</strong>: the query side of the embedding model
+    <code id="lead-model">harrier-0.6b</code> (a Qwen3-0.6B decoder, 1024-d) <span id="lead-how">compressed by GPTQ onto llama.cpp's Q2_K grid into one
+    <span id="size-lead">192 MiB</span> file, executed by llama.cpp compiled to WebAssembly, on your GPU through WebGPU
+    where the browser offers it and on the CPU otherwise</span>.
+    <strong>The document index is the original model's, unchanged</strong>: <span id="lead-index">the corpus</span> encoded once in
+    full precision, searched directly in this tab. Nothing you type leaves your device.
+  </p>
+</header>
+
+<main>
+  <section id="panel-load" class="card">
+    <div class="row">
+      <label for="ds-select" class="muted small">Corpus</label>
+      <select id="ds-select" disabled><option>…</option></select>
+      <label for="client-select" class="muted small">Client</label>
+      <select id="client-select" disabled><option>…</option></select>
+      <button id="btn-load" type="button" disabled>Load model (<span id="size-btn">…</span>)</button>
+      <span id="load-status" class="muted">reading metadata…</span>
+    </div>
+    <p class="muted small" id="legal-link">Legal CS over the full production index (Elasticsearch, side by side with the original fp32 model) → <a href="./legal.html">legal.html</a></p>
+    <div id="warn-memory" class="notice warn" hidden>This device reports less than 4 GB of memory. The model needs about
+      1.2 GB in the tab after loading; the tab may be killed. Continue at your own risk.</div>
+    <p id="client-note" class="muted small" hidden></p>
+    <p id="backend-choice" class="muted small">checking WebGPU …</p>
+    <div id="warn-gpu-fallback" class="notice warn" hidden>WebGPU was requested, but llama.cpp reported no WebGPU adapter and no
+      offloaded layers: this run is on the CPU (WebAssembly). Check chrome://gpu, or reload with the CPU backend.</div>
+    <div id="warn-threads" class="notice warn" hidden>Single-threaded: this host does not send the COOP/COEP headers that
+      enable multi-threaded WebAssembly. Everything still works, only slower.</div>
+    <div id="progress-wrap" hidden>
+      <div class="bar"><div id="progress-bar"></div></div>
+      <div id="progress-text" class="muted small"></div>
+    </div>
+    <p class="muted small">The file is fetched as 24 MiB chunks from this site and kept in the browser's private storage
+      (OPFS), so the next visit starts without downloading. Nothing is sent anywhere.</p>
+  </section>
+
+  <section id="panel-stats" class="card">
+    <h2>On this device</h2>
+    <dl class="stats">
+      <div><dt>Model file</dt><dd id="st-size">…</dd></div>
+      <div><dt>Download</dt><dd id="st-download">–</dd></div>
+      <div><dt id="st-load-label">Load (wasm + weights)</dt><dd id="st-load">–</dd></div>
+      <div><dt>Backend</dt><dd id="st-backend">–</dd></div>
+      <div><dt>Threads</dt><dd id="st-threads">–</dd></div>
+      <div><dt>Cross-origin isolated</dt><dd id="st-coi">–</dd></div>
+      <div><dt>Memory after load</dt><dd id="st-memory">–</dd></div>
+      <div><dt>Encode, last / p50</dt><dd id="st-encode">–</dd></div>
+      <div><dt>Search <span id="st-ndocs">…</span> docs, last / p50</dt><dd id="st-search">–</dd></div>
+      <div><dt>Queries this session</dt><dd id="st-count">0</dd></div>
+    </dl>
+    <p class="muted small" id="ref-native-p">Reference, same file, native llama.cpp on a laptop (8 threads, ctx 512, idle):
+      <span id="ref-native">151 ms per query, 928 MiB peak RSS</span>. Latency in a busy tab or on a loaded machine is higher.</p>
+  </section>
+
+  <section id="panel-search" class="card">
+    <form id="form-search">
+      <label for="q" class="visually-hidden">Query</label>
+      <input id="q" type="search" placeholder="Load the model, then type a query…" autocomplete="off" disabled>
+      <button id="btn-search" type="submit" disabled>Search</button>
+    </form>
+    <p class="muted small">Try a test query: <span id="examples"></span></p>
+    <ol id="results" class="results"></ol>
+  </section>
+
+  <section id="panel-verify" class="card">
+    <details id="verify-details">
+      <summary><h2>Verify on this device</h2></summary>
+      <p>Runs the <span id="v-n">…</span> <span id="v-ds">…</span> test queries through the model in this tab, one by one, scores each against the index and
+        computes nDCG@10 with the same code path as the search box. Takes <span id="v-n2">…</span> × (your latency); abortable.</p>
+      <div class="row">
+        <button id="btn-verify" type="button" disabled>Run <span id="v-n-btn">…</span> queries</button>
+        <button id="btn-abort" type="button" hidden>Abort</button>
+        <button id="btn-copy" type="button" hidden>Copy JSON report</button>
+        <span id="verify-status" class="muted"></span>
+      </div>
+      <div id="verify-progress-wrap" hidden><div class="bar"><div id="verify-bar"></div></div></div>
+      <table id="verify-table" hidden>
+        <thead><tr><th></th><th>nDCG@10</th><th>vs native</th><th>Latency p50</th><th>p95</th></tr></thead>
+        <tbody>
+          <tr><th>This device (browser, this run)</th><td id="v-ndcg">–</td><td id="v-delta">–</td><td id="v-p50">–</td><td id="v-p95">–</td></tr>
+          <tr><th id="v-native-label">Native llama.cpp, same file</th><td id="v-native">0.7440</td><td>–</td><td id="v-native-lat">151 ms</td><td>–</td></tr>
+          <tr><th>Browser, our measurement</th><td id="v-browser">0.7425</td><td id="v-browser-delta">–</td><td colspan="2" class="muted" id="v-browser-note">under load, see README</td></tr>
+          <tr><th>Original fp16 model (1 143 MiB)</th><td id="v-fp16">0.7559</td><td id="v-fp16-delta">–</td><td colspan="2" class="muted">not in the browser</td></tr>
+        </tbody>
+      </table>
+      <p id="verify-note" class="muted small" hidden></p>
+    </details>
+  </section>
+  <section id="panel-vq" class="card">
+    <details>
+      <summary><h2>Vector-quantised clients: results</h2></summary>
+      <p class="muted small">Below llama.cpp's smallest format (IQ2_XS, 177.5 MiB) we run a vector-quantised container
+        (4-d codebooks, 1.8–2.1 bits per weight) with its own WebGPU runtime. The runtime is not public yet; the numbers are.
+        Same laptop, integrated Intel GPU, headless Chrome, 300 SciFact test queries, machine idle.</p>
+      <table>
+        <thead><tr><th>runtime / file</th><th>MiB</th><th>load</th><th>peak RSS</th><th>p50</th><th>p95</th><th>nDCG@10</th></tr></thead>
+        <tbody>
+          <tr><th>VQ runtime, 2.10 bpw</th><td>119.5</td><td>2.4 s</td><td>1 592 MiB</td><td>103 ms</td><td>113 ms</td><td>0.7375</td></tr>
+          <tr><th>VQ runtime, 1.83 bpw</th><td>105.3</td><td>2.5 s</td><td>1 501 MiB</td><td>102 ms</td><td>112 ms</td><td>0.7109</td></tr>
+          <tr><th>wllama WebGPU, Q3_K (this page)</th><td>235.1</td><td>4.2 s</td><td>2 080 MiB</td><td>444 ms</td><td>754 ms</td><td>0.7481</td></tr>
+          <tr><th>wllama WebGPU, IQ2_M</th><td>199.3</td><td>5.2 s</td><td>1 983 MiB</td><td>508 ms</td><td>1 012 ms</td><td>0.7387</td></tr>
+          <tr><th>wllama WASM 8 threads, Q2_K</th><td>192.4</td><td>4.4 s</td><td>1 228 MiB</td><td>1 669 ms</td><td>3 363 ms</td><td>0.7425</td></tr>
+        </tbody>
+      </table>
+      <p class="muted small">fp32 model: 0.7559. On the Czech legal index the same format at 2.1 bpw keeps only 83 % (jina) / 64 %
+        (Qwen3-Embedding) of fp32, so a ~3-bit variant is needed there. Full tables, caveats and the paired comparison with
+        BitNet-270m: <a href="https://github.com/rosecky/embedding-quantization-public/blob/main/docs/release/vq_results.md" rel="noopener">vq_results.md</a>.
+        A live demo with the VQ clients runs behind access control; ask for an invitation (contact in the repository README).</p>
+    </details>
+  </section>
+</main>
+
+<footer>
+  <p class="notice">Quantized query-side clients released on Hugging Face (harrier: MIT, Qwen3-Embedding: Apache-2.0); base model
+    <a id="foot-base" href="https://huggingface.co/microsoft/harrier-oss-v1-0.6b" rel="noopener">microsoft/harrier-oss-v1-0.6b</a> is <span id="foot-base-license">MIT</span>,
+    Qwen3 base Apache-2.0, runtime llama.cpp/wllama MIT, corpus <span id="foot-license">see the corpus metadata</span>.</p>
+  <p class="notice" id="foot-corpus" hidden></p>
+  <p class="muted small">Source, numbers and reproduction:
+    <a href="https://github.com/rosecky/embedding-quantization-public" rel="noopener">github.com/rosecky/embedding-quantization-public</a>
+    (<a href="./README.md">demo README</a>). Runtime: <span id="foot-runtime"><a href="https://github.com/ngxson/wllama" rel="noopener">wllama</a> 3.6.1
+    (llama.cpp <span id="libllama">b10663</span>)</span>. Data: <a id="foot-data" href="https://github.com/allenai/scifact" rel="noopener">SciFact</a>.
+    <span id="meta-date"></span></p>
+</footer>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>
