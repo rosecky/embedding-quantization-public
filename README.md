@@ -5,6 +5,7 @@ encoder of a 0.6B embedding model into a 190–240 MiB file, verifies it against
 (nDCG@10, cosine to the fp32 query vector, top-10 overlap, paired bootstrap over queries) and ships it to llama.cpp or
 a browser tab (WebGPU / WebAssembly through wllama). Documents are never re-encoded.
 
+Live demo: **https://thinletter.io** (search 25 656 scientific abstracts in your browser with the released clients).
 The technical report is in [`docs/release/technical_report.md`](docs/release/technical_report.md); the released
 files are described in [`docs/release/model_card_harrier-0.6b-query-clients.md`](docs/release/model_card_harrier-0.6b-query-clients.md).
 Every number below has a generated table under `results/tables/`; the research log behind them (Czech) is not part of the public repository.
