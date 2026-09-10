@@ -61,10 +61,10 @@ indistinguishable result is not proven equivalence.
 
 Every client is a **query encoder only** and is compatible with exactly one document encoder and its settings; the
 document vectors stay as they are. Downloads (each repository carries a model card with results, recipe and sha256):
-[harrier-0.6b](https://huggingface.co/honza-rosecky/harrier-0.6b-query-clients) ·
-[Qwen3-Embedding-0.6B](https://huggingface.co/honza-rosecky/qwen3-embedding-0.6b-query-clients) ·
-[bge-m3](https://huggingface.co/honza-rosecky/bge-m3-query-clients) ·
-[harrier-0.6b vector-quantised containers](https://huggingface.co/honza-rosecky/harrier-0.6b-vq-clients).
+[harrier-0.6b](https://huggingface.co/thinletter/harrier-0.6b-query-clients) ·
+[Qwen3-Embedding-0.6B](https://huggingface.co/thinletter/qwen3-embedding-0.6b-query-clients) ·
+[bge-m3](https://huggingface.co/thinletter/bge-m3-query-clients) ·
+[harrier-0.6b vector-quantised containers](https://huggingface.co/thinletter/harrier-0.6b-vq-clients).
 
 | client | base model (licence) | compatible document index | status |
 |---|---|---|---|
@@ -130,7 +130,7 @@ at 1 592 vs 2 080 MiB of process memory (all Chrome processes), at −0.011 nDCG
 format on the Czech index holds only 83 % (jina) and 64 % (Qwen3-Embedding) at 2.1 bpw, so a ~3-bit variant is needed there. The quantizer, the container compiler and the runtime are a separate
 component under a separate licence and are being prepared as an SDK for small embedding clients; the report states which
 results depend on it. The SciDocs-calibrated containers themselves are on Hugging Face
-(`honza-rosecky/harrier-0.6b-vq-clients`, MIT): 127 MiB at 94.7 % and 113 MiB at 91.3 % of fp32 on SciDocs. If you have
+(`thinletter/harrier-0.6b-vq-clients`, MIT): 127 MiB at 94.7 % and 113 MiB at 91.3 % of fp32 on SciDocs. If you have
 an index and want a client for it, write to the address below.
 All measured VQ numbers (size × quality, the idle runtime comparison, the other models, the rotation study) are
 collected in [`docs/release/vq_results.md`](docs/release/vq_results.md).

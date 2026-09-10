@@ -25,13 +25,13 @@ fp32 me5-small: legal-cs 0.3168, scifact 0.6777.
 
 ## qwen3-0.6b
 
-| soubor | MiB | legal-cs nDCG@10 (% fp) / cos / překryv | scifact nDCG@10 (% fp) / cos / překryv | nfcorpus nDCG@10 (% fp) / cos / překryv |
-|---|---|---|---|---|
-| `qwen3-0.6b-imx-Q5_K_M-generic_cs-tabq4_0.gguf` | 385.4 | 0.3171 (99.5) / 0.983 / 0.839 | – | – |
-| `qwen3-0.6b-imx-Q5_K_M-generic_cs-tabq8_0.gguf` | 459.5 | 0.3163 (99.3) / 0.987 / 0.864 | – | – |
-| `qwen3-0.6b-imx-Q5_K_M-generic_wikitext-tabq4_0.gguf` | 385.4 | – | 0.6989 (99.8) / 0.992 / 0.928 | 0.3539 (100.1) / 0.988 / 0.912 |
-| `qwen3-0.6b-imx-Q5_K_M-generic_wikitext-tabq8_0.gguf` | 459.5 | – | 0.6992 (99.8) / 0.993 / 0.932 | 0.3534 (99.9) / 0.990 / 0.928 |
+| soubor | MiB | legal-cs nDCG@10 (% fp) / cos / překryv | scifact nDCG@10 (% fp) / cos / překryv | nfcorpus nDCG@10 (% fp) / cos / překryv | arguana nDCG@10 (% fp) / cos / překryv | scidocs nDCG@10 (% fp) / cos / překryv |
+|---|---|---|---|---|---|---|
+| `qwen3-0.6b-imx-Q5_K_M-generic_cs-tabq4_0.gguf` | 385.4 | 0.3171 (99.5) / 0.983 / 0.839 | – | – | – | – |
+| `qwen3-0.6b-imx-Q5_K_M-generic_cs-tabq8_0.gguf` | 459.5 | 0.3163 (99.3) / 0.987 / 0.864 | – | – | – | – |
+| `qwen3-0.6b-imx-Q5_K_M-generic_wikitext-tabq4_0.gguf` | 385.4 | – | 0.6989 (99.8) / 0.992 / 0.928 | 0.3539 (100.1) / 0.988 / 0.912 | 0.7040 (100.1) / 0.991 / 0.959 | 0.2171 (100.1) / 0.992 / 0.936 |
+| `qwen3-0.6b-imx-Q5_K_M-generic_wikitext-tabq8_0.gguf` | 459.5 | – | 0.6992 (99.8) / 0.993 / 0.932 | 0.3534 (99.9) / 0.990 / 0.928 | 0.7047 (100.2) / 0.992 / 0.959 | 0.2156 (99.4) / 0.993 / 0.936 |
 
-fp32 qwen3-0.6b: legal-cs 0.3186, scifact 0.7004, nfcorpus 0.3537.
+fp32 qwen3-0.6b: legal-cs 0.3186, scifact 0.7004, nfcorpus 0.3537, arguana 0.7034, scidocs 0.2168.
 
 Zdroje: `results/raw/release2_local/` (OUR_MEASUREMENT, llama-quantize --imatrix; legal-cs = 1 137 syntetických dotazů, saturovaný test: fp32 všech bází 0,317–0,319, vypovídá jen poměr / cos / překryv).

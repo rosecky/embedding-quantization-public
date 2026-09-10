@@ -18,7 +18,7 @@ tags:
 
 Query encoders for [microsoft/harrier-oss-v1-0.6b](https://huggingface.co/microsoft/harrier-oss-v1-0.6b) at
 **1.8–2.1 bits per weight**, below the smallest format llama.cpp offers (IQ2_XS, 177.5 MiB). They are meant for the
-same use as the [GGUF clients](https://huggingface.co/honza-rosecky/harrier-0.6b-query-clients): your document index
+same use as the [GGUF clients](https://huggingface.co/thinletter/harrier-0.6b-query-clients): your document index
 built with harrier-0.6b stays as it is, only the query encoder moves to the client. These files need the **Thinletter
 WebGPU runtime**, which is not published yet: it runs in the invitation-only demo at https://lab.thinletter.io and is
 being prepared as an SDK. The files are published so that the numbers can be checked against real artifacts (sizes,

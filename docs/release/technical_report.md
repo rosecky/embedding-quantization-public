@@ -179,12 +179,15 @@ imatrix and `llama-quantize` alone (encoders need a copy with `add_eos_token` cl
 jina's and better than any Qwen3-Embedding file below 4.5 bits (R2/R2b, `results/tables/release2.md`). The 4-bit token
 table (half of the file: 250 002 × 1024) costs ≤ 0.2 nDCG points against an 8-bit one on this model, against 1.0 on
 Qwen3-Embedding. The Czech calibration does not hurt English: the same files keep 99.6 / 100.0 % on SciFact. Both are
-released (`honza-rosecky/bge-m3-query-clients`); Q5_K_M (505 MiB, 99.6 %) adds 0.4 points and is not. Across the four
+released (`thinletter/bge-m3-query-clients`); Q5_K_M (505 MiB, 99.6 %) adds 0.4 points and is not. Across the four
 families measured on this index the quantization tolerance orders as bge-m3 (CLS encoder) ≥ jina-v5-small (retrieval
 fine-tune) > Qwen3-Embedding-0.6B (plain multilingual base); multilingual-e5-small could not be measured (the GGUF
 converter mismatches its tokenizer). For Qwen3-Embedding the 5.7-bit file with the Czech imatrix, Q5_K_M + q4_0 table (385 MiB), is
 released as the higher-quality option for Czech: 99.5 % on the Czech index (cosine 0.983, overlap 0.839), +0.8 points
-over Q4_K_M for 45 MiB (R1).
+over Q4_K_M for 45 MiB (R1). The same file with the English imatrix keeps 99.8 / 100.1 / 100.1 / 100.1 % on SciFact /
+NFCorpus / ArguAna / SciDocs at cosine 0.988–0.992: +0.3 points and +0.010–0.015 cosine over the released Q4_K_M, below the
+pre-registered threshold for a second English file (+0.5 points, or +0.01 cosine on every corpus; SciDocs +0.0097), so it
+is measured but not published.
 
 ### 3.3 Fair comparison with llama.cpp's own quantizer (harrier-0.6b, ~200 MiB)
 

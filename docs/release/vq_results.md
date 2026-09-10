@@ -3,7 +3,7 @@
 The vector-quantised container (4-d codebooks per 256-column block, frozen row scales, an input-side structured
 rotation) and its WebGPU runtime are **not part of the public repository**; they are being prepared as an SDK. This page
 collects the measured numbers so that the claims in the report can be read against them. The SciDocs-calibrated
-containers are published on Hugging Face (`honza-rosecky/harrier-0.6b-vq-clients`, MIT, 127 / 113 MiB; 94.7 % / 91.3 % of
+containers are published on Hugging Face (`thinletter/harrier-0.6b-vq-clients`, MIT, 127 / 113 MiB; 94.7 % / 91.3 % of
 fp32 on SciDocs, browser-verified) and a live demo with the VQ clients runs behind access control at
 `https://lab.thinletter.io`; ask for an invitation.
 

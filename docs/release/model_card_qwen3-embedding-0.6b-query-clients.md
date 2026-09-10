@@ -80,7 +80,11 @@ Why 4.5 bits and not 3 (and 5.7 bits only as an option): every ≤ 3-bit file of
 overlap ≥ 0.75). GPTQ Q3_K keeps 95–100 % nDCG on English but its cosine drops to 0.90–0.94; on Czech it keeps 90 %,
 `llama-quantize` Q3_K 80–86 %, IQ3_XXS 70 %; a 2-bit token table alone costs 4.6–6.6 points on Czech. For comparison,
 `microsoft/harrier-oss-v1-0.6b`, the same architecture as a retrieval fine-tune, holds 99 % at 3.4 bits
-([harrier clients](https://huggingface.co/honza-rosecky/harrier-0.6b-query-clients)).
+([harrier clients](https://huggingface.co/thinletter/harrier-0.6b-query-clients)).
+
+A Q5_K_M + q4_0 file with the English imatrix (385 MiB) was measured on the same four corpora: 99.8 / 100.1 / 100.1 /
+100.1 % of fp32, cosine 0.988–0.992, top-10 overlap 0.91–0.96. That is +0.3 nDCG points and +0.01 cosine over the
+340 MiB file, below our threshold for a second English file (+0.5 points); it is not published. Ask if you need it.
 
 Read differences under 0.01 nDCG@10 as ties: a paired interval over queries does not include the variance of the
 calibration draw (~0.01) or between-machine variation (±0.006). The Czech evaluation uses synthetic queries
