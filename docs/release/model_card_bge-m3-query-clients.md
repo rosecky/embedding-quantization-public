@@ -34,6 +34,8 @@ unchanged in llama.cpp (`llama-embedding --pooling cls`) and in the browser (wll
 
 Half of a bge-m3 file is the 250 002 × 1024 token table; both files keep it in 4-bit (q4_0), which costs ≤ 0.2 nDCG
 points against an 8-bit table on this model.
+The file badge on Hugging Face shows the type of that token table (`Q4_0`); the block type (Q4_K_M, Q3_K) is in the
+file name and in the GGUF header (`general.file_type` 15 / 12).
 
 ## Compatibility
 

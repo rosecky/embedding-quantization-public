@@ -39,6 +39,10 @@ the importance-matrix text and in the bit width of the blocks (Q4_K_M 4.5 bits, 
 within noise on English (+0.3 points) and +0.8 points on Czech. If your corpus is Czech, take the second (or fourth);
 otherwise the first (or third).
 
+The file badge on Hugging Face shows the type of the token table (`Q4_0`), which all files here share; the bit width of
+the layer blocks (Q4_K_M = 4.5 bits, Q5_K_M = 5.7 bits) is in the file name and in the GGUF header (`general.file_type`
+15 / 17), and is what the sizes differ by.
+
 ## Compatibility
 
 Compatible with document vectors from `Qwen/Qwen3-Embedding-0.6B` produced **without** an instruction on the document
