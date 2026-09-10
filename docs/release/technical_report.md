@@ -276,6 +276,35 @@ the architecture, the quality below 2.2 bits per weight does not, so a Czech dep
 format that does not exist yet. Kernel performance after the M4 kernel: p50 142 ms under load; idle numbers in §3.4b.
 Not part of this release beyond the numbers.
 
+### 3.7 The query prompt's keys and values in full precision (pre-registered 2026-09-10)
+
+The query prompt (harrier: the E5 instruction, 19 tokens; jina: `Query: `, 2 tokens) is the same text in front of every
+query. Its keys and values in every block can therefore be computed once by the full-precision model and shipped with the
+client as data (harrier: 28 blocks × K and V × 19 tokens × 1024 × f16 ≈ 2.2 MB; the first token alone 112 KB); the quantized
+model then processes only the user's tokens and attends to an exact prompt. We evaluated the *same* quantized model three
+ways on the same queries (plain; prompt K/V from fp32; only the first token from fp32), so the readouts are paired by
+construction (`results/tables/prefix_kv.md`; scalar rows reproducible with `scripts/gptq_export_gguf.py --no_gguf
+--prefix_kv_fp_tokens 0 1`, helper `scripts/prefix_kv.py`).
+
+| client | plain nDCG@10 (% fp) | prompt K/V from fp32: Δ nDCG [CI] / Δ cos | first token only: Δ nDCG / Δ cos |
+|---|---|---|---|
+| harrier-0.6b VQ 1.84 bpw, SciFact, three rotation seeds | 0.726–0.731 (94 %) | **+0.009 / +0.015 / +0.020**, every CI above zero; cos +0.09 to +0.11 | +0.007 / +0.018 / +0.011; cos +0.03 to +0.05 |
+| harrier-0.6b VQ 1.58 bpw (83 MiB), SciFact | 0.676 (87.5 %) | **+0.037 [+0.025; +0.048]** → 0.713 (92.3 %); cos +0.14 | +0.014; cos +0.05 |
+| harrier-0.6b GPTQ Q2_K / Q3_K, SciFact | 0.753 / 0.770 | +0.001 / +0.000 (n.s.); cos +0.006 / +0.001 | +0.001 / −0.001 (n.s.) |
+| jina-v5-small VQ 1.84 bpw / Q2_K, Czech index | 0.229 / 0.280 | +0.002 / −0.001 (n.s.); cos +0.01 | +0.003 / −0.002 (n.s.) |
+
+The effect grows with the damage: nothing at 3.4 bits, +0.001 at Q2_K, +0.009 to +0.020 at 1.84 bpw, +0.037 at 1.58 bpw,
+where the 83 MiB file with 2 MB of prompt data ends above the 1.84 bpw file without it. On the scalar grid and on the Czech
+index the first token alone carries the whole (small) effect; on the vector grid it carries most of the nDCG gain and a third
+of the cosine gain. The mechanism is the attention sink: a 2-bit model computes the first token's keys and values
+differently, the "sink" that later tokens park their attention on does not form correctly, and every later token's
+attention is displaced (diagnosed on decoders by the `llm-weight-compression` project, 2026-09-09; here measured on the
+encoder). Shipping the exact first token repairs it for 112 KB. This goes into the vector-quantized runtime (the container
+carries the prompt's K/V and the attention kernel starts from it, which also removes two thirds of the tokens per query);
+for the GGUF clients it would need a KV-state import in llama.cpp and is not worth +0.001 at Q2_K. The pre-registered
+prediction (cosine ≥ +0.005 on two of three seeds) held by an order of magnitude; the prediction that the first token carries
+at least half of the gain held for nDCG and failed for the cosine.
+
 ## 4. Practical guidance
 
 1. Compile both grids, verify against your index, keep the smallest file that passes: nDCG@10 ≥ 95 % of fp32 with the
@@ -302,12 +331,19 @@ The public repository contains the verification recipe (data layer, metrics, nat
 exporter onto the K-quant grids, the `llama-quantize` recipes of the released Qwen3 files, the comparison scripts and the
 cited tables: §3.1–3.4 and the calibration results of §3.5 are reproducible from it. It does not contain the structured
 rotation code, the vector-quantization code (quantizer, container, runtime), the raw per-run results or the research log;
-the rotation rows of §3.5 and all of §3.6 report numbers only.
+the rotation rows of §3.5 and all of §3.6 report numbers only; of §3.7 the GGUF rows reproduce (`scripts/prefix_kv.py`,
+`gptq_export_gguf.py --no_gguf --prefix_kv_fp_tokens 0 1`), the vector-quantized rows report numbers only.
 Released files (MIT, derived from harrier-0.6b): Q3_K generic-EN 235.1 MiB (sha256 a06e72ce…), Q2_K SciDocs-synthetic
 192.4 MiB (c75c22b6…), Q2_K generic-EN 192.4 MiB (db7e7760…). Base-model and dataset licences in the model card. The
 Czech customer data and the jina-derived files (CC BY-NC 4.0) are not distributed.
 
 ## 7. Related work (short)
+
+*Prompt K/V in full precision (§3.7).* PrefixQuant (Chen et al., 2024) prepends high-frequency outlier tokens as a fixed
+prefix so that activation quantization does not see them; attention sinks (Xiao et al., 2023) and massive activations
+(Sun et al., 2024) describe why the first token matters. What we ship is the exact keys and values of a constant prompt
+under weight-only quantization, evaluated paired against the same quantized model; the sink diagnosis on 2-bit decoders
+is from the `llm-weight-compression` project (2026-09-09).
 
 Asymmetric retrieval with a frozen document index: Query Encoder Distillation via Embedding Alignment; KALE (Campos et
 al., 2023). Post-training quantization: GPTQ; llama.cpp's importance-matrix quantizer (the baseline of §3.3); calibration

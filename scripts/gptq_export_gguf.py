@@ -95,6 +95,9 @@ def main():
                     help="CD objective: the linear's own output (layer), the enclosing attention/MLP block output (module, Rademacher probes), "
                          "or the final pooled L2-normalised embedding (global, Rademacher probes in embedding space; all seven linears get a dense G)")
     ap.add_argument("--cd_probes", type=int, default=2)
+    ap.add_argument("--cd_probe_source", default="rademacher", choices=["rademacher", "index"],
+                    help="global scope only (pre-registered 2026-09-10): 'index' shapes the embedding-space probes by the centred covariance of "
+                         "the first dataset's stored document vectors (global_scope.index_probe_sqrt), so the metric is E[J^T Sigma_c J]; tag letter 'c'")
     ap.add_argument("--cd_pre", type=int, default=0, help="layer-local CD sweeps (G=None) run BEFORE the module-scope sweeps; the peer's tested recipe is --cd_pre 6 --cd_sweeps 6")
     ap.add_argument("--cd_batches", type=int, default=4)
     ap.add_argument("--cd_mlp_only", action="store_true", help="control arm: the CD post-pass refines only gate/up/down; the attention linears keep their GPTQ solution untouched")
@@ -108,6 +111,9 @@ def main():
     ap.add_argument("--device", default="cuda")
     ap.add_argument("--no_gguf", action="store_true", help="only quantize on the K-quant grid and evaluate in torch (runtime matches to 0.002); skip writing the file")
     ap.add_argument("--out", default="results/raw/gptq_export")
+    ap.add_argument("--prefix_kv_fp_tokens", type=int, nargs="*", default=None,
+                    help="pre-registered 2026-09-10: also evaluate (torch side) with the query prompt's K/V from the fp model (scripts/prefix_kv.py); "
+                         "one readout per value = prefix tokens from fp (0 = whole prompt, 1 = sink token only); keys *_pkv<n> in torch_ndcg")
     args = ap.parse_args()
     if args.act_order:
         args.static_groups = True
@@ -130,7 +136,13 @@ def main():
     tok = AutoTokenizer.from_pretrained(src); tok.padding_side = "right" if pooling == "cls" else "left"
     out_dir = Path(args.out); out_dir.mkdir(parents=True, exist_ok=True)
     # tag letter of the CD scope: '' layer, 'm' module, 'g' global; MLP-only control appends 'm' ('lm' for layer scope so it cannot read as module)
-    cd_letter = {"layer": "", "module": "m", "global": "g"}[args.cd_scope] + (("m" if args.cd_scope != "layer" else "lm") if args.cd_mlp_only else "") + ("s" if args.cd_strict else "")
+    cd_letter = {"layer": "", "module": "m", "global": "g"}[args.cd_scope] + ("c" if (args.cd_scope == "global" and args.cd_probe_source == "index") else "") + (("m" if args.cd_scope != "layer" else "lm") if args.cd_mlp_only else "") + ("s" if args.cd_strict else "")
+    probe_S = None
+    if args.cd_sweeps and args.cd_scope == "global" and args.cd_probe_source == "index":
+        from global_scope import index_probe_sqrt
+        _, D_idx, _, _ = load_emb(args.datasets[0], args.teacher)
+        probe_S = index_probe_sqrt(D_idx, dev)
+        print(f"[cd] global probes shaped by the centred index covariance of {args.datasets[0]} ({D_idx.shape[0]} docs); trace/d = {float(torch.trace(probe_S @ probe_S.t()) / probe_S.shape[0]):.3f}", flush=True)
     gdamp_tag = "" if args.cd_gdamp == 1.0 else "d" + f"{args.cd_gdamp:g}".replace(".", "")  # 0.3 -> d03, 0.1 -> d01, 2 -> d2
     tag = f"{args.type}{('-' + args.hi_type + ('L%d' % args.hi_last if args.hi_last else '') + ''.join('-' + n.split('.')[-1] for n in (args.hi_names or []))) if args.hi_type else ''}-{args.calib}" + (f"-ps{args.n_seq}" if args.per_sample else "") + (f"-t{args.calib_tokens//1000}k" if args.calib_tokens else "") + ("-ao" if args.act_order else "") + ("-sg" if args.static_groups and not args.act_order else "") + (f"-tab{args.table_type}" if args.table_type.upper() != "Q5_0" else "") + ("" if args.rotate == "none" else f"-{args.rotate}") + (f"-2{args.rotate_side}" + (f"r{args.rot_rounds}" if args.rot_rounds != 2 else "") + (f"s{args.rot_seed}" if args.rot_seed else "") if args.rotate_matrix else "") + (f"-cd{args.cd_sweeps}{cd_letter}{('p%d' % args.cd_pre) if args.cd_pre else ''}{gdamp_tag}" if args.cd_sweeps else "") + (f"-L{args.layers}" if args.layers else "")
     out_gguf = ROOT / "models/gguf" / f"{model_key}-gptq-{tag}.gguf"
@@ -202,9 +214,9 @@ def main():
                     t_g = time.time()
                     want = [n for n in ctx["names"] if (n in MLP_NAMES or not args.cd_mlp_only)]
                     G_cache[key] = global_G(model, ctx["li"], want, ctx["inps"], ctx["masks"], ctx["kws"], pool_fn, n_probe=args.cd_probes,
-                                            max_batches=args.cd_batches, damp_rel=args.cd_gdamp, seed=args.rot_seed, chunk=args.cd_chunk)
+                                            max_batches=args.cd_batches, damp_rel=args.cd_gdamp, seed=args.rot_seed, chunk=args.cd_chunk, probe_cov_sqrt=probe_S)
                     G_fresh[key] = global_G(model, ctx["li"], want, ctx["inps"], ctx["masks"], ctx["kws"], pool_fn, n_probe=args.cd_probes,
-                                            max_batches=args.cd_batches, damp_rel=args.cd_gdamp, seed=FRESH_SEED, chunk=args.cd_chunk)
+                                            max_batches=args.cd_batches, damp_rel=args.cd_gdamp, seed=FRESH_SEED, chunk=args.cd_chunk, probe_cov_sqrt=probe_S)
                     print(f"  [global G] block {ctx['li']}: {len(want)} metrics from {args.cd_probes} probes x {args.cd_batches} batches, decision + fresh draw [{time.time() - t_g:.0f}s]", flush=True)
                 G = G_cache[key].get(ctx["name"]); Gf = G_fresh[key].get(ctx["name"])
             if args.cd_pre and G is not None:   # peer's recipe: layer-local sweeps first (pack['codes'] updated in place), then under dense G
@@ -267,6 +279,19 @@ def main():
         torch_rows[d] = dict(ndcg10=float(np.nanmean(nd)), fp_ndcg10=float(np.nanmean(G.ndcg_at_k(S0, rel, 10))), n=len(te),
                              q_cos_fp=float(np.mean(np.sum(Qq * Qfp_te, 1))),          # continuous readout: resolves effects nDCG cannot
                              emb_mse=float(np.mean(np.sum((Qq - Qfp_te) ** 2, 1))))
+        extra_perq = {}
+        if args.prefix_kv_fp_tokens is not None:   # pre-registered 2026-09-10: the same quantised model with the prompt's K/V from the fp model
+            assert pooling == "last", "prefix-KV readout assumes last-token pooling"
+            from prefix_kv import encode_queries_prefix_kv
+            if "model_fp" not in locals():
+                model_fp = AutoModel.from_pretrained(src, dtype=torch.float16).to(dev).eval()
+            for n_fp in args.prefix_kv_fp_tokens:   # -1 = control: the prefix cache from the QUANTISED model itself (must reproduce plain)
+                Qp, P = encode_queries_prefix_kv(model, model if n_fp < 0 else model_fp, tok, [qp + ds.queries[q] for q in te], dev, A=(A.to(dev) if A is not None else None), n_fp=(None if n_fp <= 0 else n_fp))
+                Sp = mask_self(Qp @ D_T.T, msk); ndp = G.ndcg_at_k(Sp, rel, 10); extra_perq[f"ndcg_pkv{n_fp}"] = ndp
+                torch_rows[d].update({f"ndcg10_pkv{n_fp}": float(np.nanmean(ndp)), f"q_cos_fp_pkv{n_fp}": float(np.mean(np.sum(Qp * Qfp_te, 1))),
+                                      f"prefix_tokens_pkv{n_fp}": int(P), f"cos_plain_pkv{n_fp}": float(np.mean(np.sum(Qp * Qq, 1)))})
+                print(f"[prefix-kv] {d}: fp tokens={P}: nDCG@10={torch_rows[d][f'ndcg10_pkv{n_fp}']:.4f} cos(q, fp)={torch_rows[d][f'q_cos_fp_pkv{n_fp}']:.6f} "
+                      f"(plain {torch_rows[d]['q_cos_fp']:.6f}, Δ {torch_rows[d][f'q_cos_fp_pkv{n_fp}'] - torch_rows[d]['q_cos_fp']:+.6f})", flush=True)
         # cheapest rung of "quantization + fitting": one ridge-fitted linear map that undoes the SYSTEMATIC part of the
         # quantization distortion. Fitted on train+dev queries, scored on test only; at deployment it folds into the
         # document index (d -> d W^T), so the client file and its latency are untouched.
@@ -282,13 +307,13 @@ def main():
                                  test_ndcg10_linfix=float(np.nanmean(G.ndcg_at_k(S_c, rel_t, 10))))
             print(f"[linfix] {d}: test {torch_rows[d]['test_ndcg10']:.4f} -> {torch_rows[d]['test_ndcg10_linfix']:.4f} "
                   f"({torch_rows[d]['test_ndcg10_linfix']-torch_rows[d]['test_ndcg10']:+.4f}) with a linear correction folded into the index", flush=True)
-        np.savez(perq_dir / f"{d}_{tag}_{'+'.join(args.splits)}.npz", ndcg=nd, ndcg_fp=G.ndcg_at_k(S0, rel, 10))
+        np.savez(perq_dir / f"{d}_{tag}_{'+'.join(args.splits)}.npz", ndcg=nd, ndcg_fp=G.ndcg_at_k(S0, rel, 10), **extra_perq)
         print(f"[torch] {d}: GPTQ-{args.type} nDCG@10={torch_rows[d]['ndcg10']:.4f} (fp {torch_rows[d]['fp_ndcg10']:.4f})  "
               f"cos(q, fp)={torch_rows[d]['q_cos_fp']:.6f}  emb MSE={torch_rows[d]['emb_mse']:.6f}", flush=True)
 
     # ---- pack into the GGUF ----
     if args.no_gguf:
-        row = dict(gguf=None, tag=tag, type=args.type, rotate=args.rotate, rotate_matrix=args.rotate_matrix, rot_rounds=args.rot_rounds, rotate_side=(args.rotate_side if args.rotate_matrix else None), cd_sweeps=args.cd_sweeps, calib=args.calib, n_seq=int(ids.shape[0]),
+        row = dict(gguf=None, tag=tag, teacher=args.teacher, type=args.type, rotate=args.rotate, rotate_matrix=args.rotate_matrix, rot_rounds=args.rot_rounds, rotate_side=(args.rotate_side if args.rotate_matrix else None), cd_sweeps=args.cd_sweeps, calib=args.calib, n_seq=int(ids.shape[0]),
                    per_sample=args.per_sample, act_order=args.act_order, static_groups=args.static_groups, hi_type=args.hi_type,
                    splits="+".join(args.splits), torch_ndcg=torch_rows, quant_s=quant_s, attribution="OUR_MEASUREMENT",
                    **({"cd_scope": args.cd_scope} if args.cd_sweeps else {}), **({"cd_mlp_only": True} if (args.cd_sweeps and args.cd_mlp_only) else {}), **({"cd_strict": True} if (args.cd_sweeps and args.cd_strict) else {}),

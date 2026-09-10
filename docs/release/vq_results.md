@@ -74,3 +74,19 @@ On SciDocs (second English corpus, fp32 0.2269, 500 test queries) the published 
 127 MiB) and 91.3 % (1.83 bpw, 113 MiB), the 2.10 bpw file matching the 2.6-bit GGUF (94.5 %, 192 MiB); the browser
 reproduces the simulation on 50 queries to −0.0002 / +0.0009. Not established: any Czech point at ≤ 2.2 bpw,
 discrete-GPU or mobile numbers, and a comparison with ONNX Runtime Web.
+
+## 6. The prompt's keys and values in full precision (measured 2026-09-10, paired on the same quantised model)
+
+The query prompt (19 tokens for harrier) is constant, so its K/V in every block can be computed by the fp32 model once and
+shipped with the container (≈ 2.2 MB; first token alone 112 KB); the quantised model then processes only the user's tokens.
+Same quantised model, same queries, three readouts; paired bootstrap over queries, 10 000 draws (`results/tables/prefix_kv.md`).
+
+| container (SciFact, all 1 109 queries, fp32 0.7723) | plain | prompt K/V from fp32 | first token only from fp32 |
+|---|---|---|---|
+| 1.84 bpw, rotation seed 0 / 7 / 13 | 0.7257 / 0.7291 / 0.7309 | 0.7408 / 0.7493 / 0.7399 (+0.015 / +0.020 / +0.009, CIs above zero); cos to fp32 0.78 → 0.88–0.89 | 0.7432 / 0.7398 / 0.7378; cos 0.82–0.83 |
+| 1.58 bpw (83 MiB), seed 0 | 0.6760 (87.5 %) | **0.7126 (92.3 %), +0.037 [+0.025; +0.048]**; cos 0.68 → 0.83 | 0.6904 (+0.014); cos 0.73 |
+
+The same readout on the scalar GGUF clients of this model is +0.001 (Q2_K) and 0.000 (Q3_K), and on the Czech index with
+jina-v5-small (prompt 2 tokens) +0.002 / −0.001, not significant. Mechanism: the attention sink on the first token forms
+wrongly in the 2-bit model; an exact first token repairs most of the ranking loss. Not in the published containers yet
+(the runtime has to start the attention from a shipped cache); report §3.7.
