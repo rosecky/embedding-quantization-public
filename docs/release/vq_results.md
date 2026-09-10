@@ -2,8 +2,10 @@
 
 The vector-quantised container (4-d codebooks per 256-column block, frozen row scales, an input-side structured
 rotation) and its WebGPU runtime are **not part of the public repository**; they are being prepared as an SDK. This page
-collects the measured numbers so that the claims in the report can be read against them. A live demo with the VQ
-clients runs behind access control at `thinletter-lab.pages.dev`; ask for an invitation.
+collects the measured numbers so that the claims in the report can be read against them. The SciDocs-calibrated
+containers are published on Hugging Face (`honza-rosecky/harrier-0.6b-vq-clients`, MIT, 127 / 113 MiB; 94.7 % / 91.3 % of
+fp32 on SciDocs, browser-verified) and a live demo with the VQ clients runs behind access control at
+`https://lab.thinletter.io`; ask for an invitation.
 
 All numbers are ours (`OUR_MEASUREMENT`), nDCG@10 against the unchanged fp32 index of the same model, test split,
 paired bootstrap over queries where a CI is given (10 000 draws). "sim" = torch simulation of the quantised weights;
@@ -68,5 +70,7 @@ on ArguAna generic text keeps 90 % and corpus calibration adds nothing measurabl
 
 Established: a real file of 105–120 MiB with browser-verified quality, an order-of-magnitude latency advantage over the
 llama.cpp WebGPU path on one integrated GPU, and transfer of the format to two more models of the same architecture.
-Not established: quality on a second corpus for the VQ files (SciFact is the only English point with a browser
-measurement), any Czech point at ≤ 2.2 bpw, discrete-GPU or mobile numbers, and a comparison with ONNX Runtime Web.
+On SciDocs (second English corpus, fp32 0.2269, 500 test queries) the published containers keep 94.7 % (2.10 bpw,
+127 MiB) and 91.3 % (1.83 bpw, 113 MiB), the 2.10 bpw file matching the 2.6-bit GGUF (94.5 %, 192 MiB); the browser
+reproduces the simulation on 50 queries to −0.0002 / +0.0009. Not established: any Czech point at ≤ 2.2 bpw,
+discrete-GPU or mobile numbers, and a comparison with ONNX Runtime Web.

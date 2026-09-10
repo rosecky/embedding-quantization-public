@@ -122,7 +122,9 @@ per weight) with its own WebGPU runtime reaches nDCG@10 0.7375 in the browser at
 at 1 592 vs 2 080 MiB of process memory (all Chrome processes), at −0.011 nDCG@10 (report §3.4b; one device, one model, one corpus). The same
 format on the Czech index holds only 83 % (jina) and 64 % (Qwen3-Embedding) at 2.1 bpw, so a ~3-bit variant is needed there. The quantizer, the container compiler and the runtime are a separate
 component under a separate licence and are being prepared as an SDK for small embedding clients; the report states which
-results depend on it. If you have an index and want a client for it, write to the address below.
+results depend on it. The SciDocs-calibrated containers themselves are on Hugging Face
+(`honza-rosecky/harrier-0.6b-vq-clients`, MIT): 127 MiB at 94.7 % and 113 MiB at 91.3 % of fp32 on SciDocs. If you have
+an index and want a client for it, write to the address below.
 All measured VQ numbers (size × quality, the idle runtime comparison, the other models, the rotation study) are
 collected in [`docs/release/vq_results.md`](docs/release/vq_results.md).
 

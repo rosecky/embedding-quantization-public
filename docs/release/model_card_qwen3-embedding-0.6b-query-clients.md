@@ -13,62 +13,92 @@ tags:
   - quantization
   - gguf
   - llama.cpp
+  - wllama
   - query-encoder
   - asymmetric-retrieval
 ---
 
-# Qwen3-Embedding-0.6B query-side clients (GGUF)
+# Qwen3-Embedding-0.6B query-side clients (GGUF, 340 MiB)
 
-**Status:** draft model card. Files are listed with their release condition; a file is published only when the
-condition is met by the native measurement (`results/tables/release_cs.md`, `results/tables/release_en.md`). Numbers in
-brackets are pending.
+Small **query encoders** for [Qwen/Qwen3-Embedding-0.6B](https://huggingface.co/Qwen/Qwen3-Embedding-0.6B). Use one of
+them wherever you already have a document index built with Qwen3-Embedding-0.6B and want to encode queries on the
+client (laptop, browser tab, edge device) instead of on a server: the index stays as it is, the query vectors stay
+compatible, and the file is 340 MiB instead of 1 142 MiB (fp16). Runs unchanged in llama.cpp (`llama-embedding`) and in
+the browser (wllama 3.6.1, WebGPU or WebAssembly). Live demo: https://thinletter.io/demo.
 
-Quantized **query encoders** for `Qwen/Qwen3-Embedding-0.6B` (Apache-2.0; Qwen3-0.6B decoder, last-token pooling,
-1024-d, 100+ languages) for use **against an existing document index computed by the unquantized model**. The
-document side is untouched. They run in llama.cpp (`llama-embedding`) and in the browser (wllama).
+| file | use it for | quality vs the fp32 model on its own index (nDCG@10) |
+|---|---|---|
+| `qwen3-0.6b-imx-Q4_K_M-generic_wikitext-tabq4_0.gguf` (339.9 MiB) | **English and general multilingual retrieval** | SciFact 100.0 % · NFCorpus 99.4 % · ArguAna 100.1 % · SciDocs 99.3 % (cosine to the fp32 query vector 0.97–0.98) |
+| `qwen3-0.6b-imx-Q4_K_M-generic_cs-tabq4_0.gguf` (339.9 MiB) | **Czech corpora** (quantization calibrated on Czech text) | Czech supreme-court index, 55 071 segments: 98.7 % (cosine 0.966, top-10 overlap 0.775) |
+
+Both files are the same recipe (`llama-quantize` Q4_K_M with a 4-bit token table) and differ only in the language of the
+importance-matrix text. If your corpus is Czech, take the second; otherwise the first.
 
 ## Compatibility
 
 Compatible with document vectors from `Qwen/Qwen3-Embedding-0.6B` produced **without** an instruction on the document
-side, last-token pooling, L2 normalisation, 1024 dimensions (Matryoshka truncation to fewer dimensions works the same
-way for the client's output as for the original: truncate, then renormalise). Queries use the model's instruction
-format `Instruct: <task>\nQuery: <text>`; the released files were evaluated with the generic web-search instruction.
+side, last-token pooling, L2 normalisation, 1024 dimensions. Matryoshka truncation works the same way for the client's
+output as for the original (truncate, then renormalise). Queries use the model's instruction format; the files were
+evaluated with the generic web-search instruction and **no trailing space** after `Query:`, which is what the official
+sentence-transformers prompt produces:
+
+```
+Instruct: Given a web search query, retrieve relevant passages that answer the query
+Query:<your query>
+```
+
 **Not compatible** with indexes of `jina-embeddings-v5-text-small`, `harrier-oss-v1-0.6b` or any other model, even
-though the architecture and the dimension are the same. Switching a deployed system to this base means re-indexing.
+though the architecture and the dimension are the same.
 
-## Planned files and release conditions
+## How to use
 
-| id | file | grid | calibration text | evaluated on | release condition | status |
-|---|---|---|---|---|---|---|
-| Q1 | `qwen3-0.6b-imx-Q4_K_M-generic_wikitext-tabq4_0.gguf` (**339.9 MiB**) — **general query client**, `llama-quantize` Q4_K_M with an English imatrix, token table q4_0 | Q4_K_M blocks, q4_0 table | generic English (wikitext, 585 × 512 tokens) | SciFact / NFCorpus / ArguAna / SciDocs vs own fp32: **100.0 / 99.4 / 100.1 / 99.3 %**, cosine 0.981 / 0.973 / 0.980 / 0.983, overlap 0.898 / 0.869 / 0.937 / 0.898 | ≥ 95 % of own fp32 nDCG@10, cosine ≥ 0.94, top-10 overlap ≥ 0.75 on ≥ 3 of 4 corpora → **met on 4 of 4** | **released** (same recipe as Q2'; the Q2_K-table variant, 305 MiB, scores 98.7 / 98.2 / 100.8 / 100.2 % at cosine 0.95–0.97 and is not published) |
-| Q1' | GPTQ Q3_K generic-EN (235 MiB) | Q3_K, Q2_K table | same | 96.6 / 96.6 / 100.0 / 95.1 % nDCG but cosine 0.933 / 0.905 / 0.945 / 0.936 and overlap 0.741 on NFCorpus | fails the cosine part on 3 of 4 | **not released**; `llama-quantize` Q3_K pure (96.1 / 94.4 / 98.0 / 92.3 %) and IQ3_XXS (95.0 / 89.6 / 93.9 / 91.5 %) also fail |
-| Q2 | `qwen3-0.6b-gptq-Q3_K-generic_cs-…-tabQ2_K.gguf` (235.1 MiB) — **quantization calibrated on Czech text** | Q3_K, Q2_K table | Czech Wikipedia paragraphs (300k tokens) | Czech supreme-court segments (55 071 docs, 1 137 synthetic queries) vs own fp32 0.3186 | same criterion on the Czech index | E1 native: 0.2868 (**90.0 %**), cosine 0.881, overlap 0.547 — **fails**; not released in this form |
-| Q3 | Q3_K calibrated on synthetic Czech legal queries | Q3_K | doc2query from 1 500 held-out legal segments | same | only if it beats Q2 by ≥ +0.01 nDCG@10 with a CI excluding zero | E4 pending |
-| Q2' | `qwen3-0.6b-imx-Q4_K_M-generic_cs-tabq4_0.gguf` (**339.9 MiB**) — `llama-quantize` Q4_K_M with a Czech imatrix, token table q4_0 — **quantization calibrated on Czech text** | Q4_K_M blocks, q4_0 table | Czech Wikipedia imatrix (585 × 512 tokens) | same | same criterion | **0.3145 (98.7 %)**, cosine 0.966, overlap 0.775, Δ vs fp32 −0.004 [−0.011; +0.002] (prompt-corrected run) — meets the criterion; **released**. Variant with q8_0 table: 414.0 MiB, 0.3172 (99.5 %), cosine 0.969, overlap 0.788 (not published) |
-| Q4 | `llama-quantize` Q3_K / IQ3_XXS / Q4_K_M with the Q2_K token table | K-quant / IQ | Czech imatrix | same | – | Q3_K pure 80.2 %, IQ3_XXS 69.8 %, Q4_K_M 94.7 % (overlap 0.649), Q3_K mixture 86.2 %; Q3_K mixture with q8_0 table 92.8 % — **none released**. On this model the Q2_K token table costs 4.6–6.6 points on Czech and the 3-bit blocks cost the rest |
+```
+llama-embedding -m qwen3-0.6b-imx-Q4_K_M-generic_wikitext-tabq4_0.gguf -c 512 --pooling last --embd-normalize 2 \
+    -p "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery:<your query>"
+```
 
-If Q1 and Q2 turn out to give the same result on both the English and the Czech evaluation (differences < 0.01), a
-single recommended file is published with both evaluations.
+Set the context to the query length (`-c 512`); at the model's default 32k context llama.cpp allocates a KV cache of
+several GB. In the browser, wllama 3.6.1 loads the file directly (WebGPU where `shader-f16` is available, WebAssembly
+otherwise); the demo at https://thinletter.io/demo shows the chunked download and the per-query verification.
 
-**Naming rule.** "Calibrated on Czech text" describes the calibration data of a post-training quantization. It is not a
-fine-tune, not a Czech model and not a legal-domain model. The base model's quality on Czech is the base model's; on the
-Czech legal evaluation its fp32 nDCG@10 is 0.3186 against 0.3190 for jina-embeddings-v5-text-small on the same
-synthetic queries (each against its own index; no human relevance judgements).
+## Results
 
-sha256 of the candidates: `f76f1112bc43a1cd35c7c55c163e047caa3cde7b21b05b1e6891033db8dd29f4` (Q4_K_M + q4_0 table,
-339.9 MiB), `b18ef672d8186430bef6c07792444c43d1fbd4a32c25f517460f25850b274c85` (Q4_K_M + q8_0 table, 414.0 MiB).
-Recipe: `llama-imatrix -m qwen3-embedding-0.6b-f16.gguf -f generic_cs.txt -c 512 --chunks 585 -o imatrix.gguf` then
-`llama-quantize --imatrix imatrix.gguf --token-embedding-type q4_0 qwen3-embedding-0.6b-f16.gguf out.gguf Q4_K_M`.
+Test split, native `llama-embedding`, fp32 document index of the same model. nDCG@10 (% of fp32), mean cosine of the
+client's query vector to the fp32 query vector, mean top-10 overlap with the fp32 ranking.
 
-## What we measure and report per file
+| corpus (queries) | fp32 | Q4_K_M + q4_0 table, English imatrix | Q4_K_M + q4_0 table, Czech imatrix |
+|---|---|---|---|
+| SciFact (300) | 0.7004 | 0.7004 (100.0 %) · cos 0.981 · overlap 0.898 | – |
+| NFCorpus (323) | 0.3537 | 0.3514 (99.4 %) · 0.973 · 0.869 | – |
+| ArguAna (700, self-document ignored) | 0.7034 | 0.7044 (100.1 %) · 0.980 · 0.937 | – |
+| SciDocs (500) | 0.2168 | 0.2154 (99.3 %) · 0.983 · 0.898 | – |
+| Czech supreme-court segments (1 137 synthetic queries) | 0.3186 | – | 0.3145 (98.7 %) · 0.966 · 0.775 |
 
-nDCG@10 and recall@100 against the unchanged fp32 index, mean cosine to the fp32 query vector, mean top-10 overlap
-with the fp32 ranking, paired bootstrap CI over queries, file size, and (for the recommended file) native latency at
-context 512 and browser latency/memory. Differences under 0.01 nDCG are ties (calibration-draw variance ~0.01).
+Why 4.5 bits and not 3: every ≤ 3-bit file of this model failed our release rule (≥ 95 % of fp32, cosine ≥ 0.94, top-10
+overlap ≥ 0.75). GPTQ Q3_K keeps 95–100 % nDCG on English but its cosine drops to 0.90–0.94; on Czech it keeps 90 %,
+`llama-quantize` Q3_K 80–86 %, IQ3_XXS 70 %; a 2-bit token table alone costs 4.6–6.6 points on Czech. For comparison,
+`microsoft/harrier-oss-v1-0.6b`, the same architecture as a retrieval fine-tune, holds 99 % at 3.4 bits
+([harrier clients](https://huggingface.co/honza-rosecky/harrier-0.6b-query-clients)).
 
-## Licences and provenance
+Read differences under 0.01 nDCG@10 as ties: a paired interval over queries does not include the variance of the
+calibration draw (~0.01) or between-machine variation (±0.006). The Czech evaluation uses synthetic queries
+(Qwen3-1.7B doc2query, relevant = source segment), no human relevance judgements.
 
-Weights derive from `Qwen/Qwen3-Embedding-0.6B` (Apache-2.0) and are released under Apache-2.0 with attribution.
-Calibration texts: wikitext (CC BY-SA), Czech Wikipedia (CC BY-SA; the sampling script is published, not the text),
-synthetic queries generated with Qwen3-1.7B from public court decisions. Evaluation code:
-`https://github.com/rosecky/embedding-quantization-public` (Apache-2.0).
+## Recipe
+
+```
+llama-imatrix -m qwen3-embedding-0.6b-f16.gguf -f generic_cs.txt -c 512 --chunks 585 -o imatrix.gguf   # or generic_wikitext.txt
+llama-quantize --imatrix imatrix.gguf --token-embedding-type q4_0 qwen3-embedding-0.6b-f16.gguf out.gguf Q4_K_M
+```
+
+`generic_cs.txt` = 3 000 paragraphs of Czech Wikipedia (sampling script in the repository), `generic_wikitext.txt` =
+wikitext-2. The verification harness (import your index, synthetic queries, nDCG / cosine / overlap, paired bootstrap)
+and the technical report are at https://github.com/rosecky/embedding-quantization-public.
+
+sha256: `71676d1baa7fee867a680a7972ae88e9570c4fc3c99f33b0392b9b5fc508836f` (English imatrix),
+`f76f1112bc43a1cd35c7c55c163e047caa3cde7b21b05b1e6891033db8dd29f4` (Czech imatrix).
+
+## Licence
+
+Weights derive from `Qwen/Qwen3-Embedding-0.6B` (Apache-2.0) and are released under Apache-2.0. Calibration texts:
+wikitext-2 (CC BY-SA), Czech Wikipedia (CC BY-SA; sampling script published, text not redistributed).
