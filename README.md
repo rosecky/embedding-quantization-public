@@ -29,6 +29,7 @@ Quantized query side against the fp32 document index of the same model, test spl
 | harrier-0.6b / ArguAna (EN) | 0.6665 | 101 % (generic EN = synthetic) | 96–99 % | – |
 | harrier-0.6b / SciDocs (EN) | 0.2269 | 99.2 % (generic EN) | 90 % generic EN, 93–94.5 % corpus / synthetic | – |
 | jina-v5-small / Czech supreme-court segments (55 071 docs, customer index) | 0.3190 | **96.9 %** generic **Czech** text; 94.0 % generic English | 79.5 % generic Czech, 86.2 % synthetic queries, **50.9 % generic English** | language first |
+| bge-m3 / Czech supreme-court segments (own fp32 index; XLM-R encoder, CLS) | 0.3169 | 99.2 % Q4_K_M + q4_0 (355 MiB); 98.3 % Q3_K + q4_0 (321 MiB); Czech imatrix also holds on SciFact (99.6 / 100.0 %) | – | encoder is the most robust family measured |
 | Qwen3-Embedding-0.6B / Czech supreme-court segments (own fp32 index) | 0.3186 | **90.0 %** generic Czech text (cos 0.881) — fails our release rule; `llama-quantize` Q3_K 80–86 %; first files to pass: **Q4_K_M with a q4_0 token table (340 MiB): 98.3 %**, with q8_0 table (414 MiB) 99.3 % | – | same recipe, different model |
 
 Three things we want a reader to take away:
@@ -66,6 +67,8 @@ document vectors stay as they are.
 | harrier-0.6b Q3_K generic-EN (235 MiB), Q2_K SciDocs-synthetic and Q2_K generic-EN (192 MiB) | microsoft/harrier-oss-v1-0.6b (MIT) | harrier-0.6b, no document prompt, last-token pooling, L2 | released with this report (MIT) |
 | Qwen3-Embedding-0.6B Q4_K_M + q4_0 token table, generic-EN (340 MiB, `llama-quantize`, "general query client") | Qwen/Qwen3-Embedding-0.6B (Apache-2.0) | Qwen3-Embedding-0.6B, documents without instruction, queries with the `Instruct: …\nQuery:` prefix (no trailing space), last-token, L2 | meets the rule on 4 of 4 English corpora (100.0 / 99.4 / 100.1 / 99.3 %, cosine 0.97–0.98); the 3-bit files of this model fail on cosine and are not released |
 | Qwen3-Embedding-0.6B Q4_K_M + q4_0 token table, calibrated on Czech text (340 MiB, `llama-quantize`) | Qwen/Qwen3-Embedding-0.6B (Apache-2.0) | same as above | meets the rule on the Czech index (98.7 %, cosine 0.966, overlap 0.775); released. Every ≤ 3-bit variant failed (80–93 %) |
+| Qwen3-Embedding-0.6B Q5_K_M + q4_0 token table, calibrated on Czech text (385 MiB, `llama-quantize`) | Qwen/Qwen3-Embedding-0.6B (Apache-2.0) | same as above | released as the higher-quality option: Czech index 99.5 %, cosine 0.983, overlap 0.839 |
+| bge-m3 Q4_K_M + q4_0 table (355 MiB) and Q3_K + q4_0 (321 MiB), calibrated on Czech text (`llama-quantize`) | BAAI/bge-m3 (MIT) | bge-m3 dense embeddings, CLS pooling, L2, 1024-d | released: Czech index 99.2 % / 98.3 %, SciFact 99.6 % / 100.0 % |
 | jina-v5-small Q3_K (Czech legal case study) | jinaai/jina-embeddings-v5-text-small (CC BY-NC 4.0) | the customer's jina index | numbers only, weights not distributed |
 
 "Calibrated on Czech text" means exactly that: the same post-training quantization with Czech Wikipedia paragraphs as
@@ -148,7 +151,8 @@ Details and citations: `research/prior_art.md`.
 ## Licences
 
 Code in this repository: Apache-2.0 (`LICENSE`). Released weights derive from `microsoft/harrier-oss-v1-0.6b` (MIT)
-and are MIT; planned Qwen3-Embedding-0.6B clients will be Apache-2.0. The Czech-legal jina clients derive from
+and are MIT; the Qwen3-Embedding-0.6B clients derive from `Qwen/Qwen3-Embedding-0.6B` (Apache-2.0) and are Apache-2.0;
+the bge-m3 clients derive from `BAAI/bge-m3` (MIT) and are MIT. The Czech-legal jina clients derive from
 `jinaai/jina-embeddings-v5-text-small` (CC BY-NC 4.0) and are **not** distributed. SciDocs is CC BY 4.0; SciFact is
 non-commercial, so the public demo uses SciDocs. The vector-quantised runtime and compiler are not covered by this
 licence.

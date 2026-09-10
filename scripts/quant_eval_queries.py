@@ -77,7 +77,8 @@ def main():
             sp_tag = "" if args.splits == ["test"] else "_" + "+".join(args.splits)  # chunk cache is keyed by the query set
             work = ROOT / "data/emb" / d / f"quant_{tag}{sp_tag}" / "chunks"
             t0 = time.time()
-            Qq, stats = encode_runtime(args.bin, g, prompts, work, "q", args.threads, args.workers, 400, args.ctx, "last")
+            pooling = spec.get("pooling", "last")  # last-token for the Qwen3 decoders, cls for bge-m3, mean for multilingual-e5
+            Qq, stats = encode_runtime(args.bin, g, prompts, work, "q", args.threads, args.workers, 400, args.ctx, pooling)
             Qq = Qq.astype(np.float32)
             rot_map = g.with_suffix(".rot.npy")  # fused Hadamard rotation: the file's embeddings live in a rotated frame
             A = np.load(rot_map).astype(np.float32) if rot_map.exists() else None
@@ -90,7 +91,7 @@ def main():
             Dq = D_T
             if args.both_sides:
                 docs = [doc_prompt(spec) + ((ds.corpus[x].get("title") or "") + "\n" + (ds.corpus[x].get("text") or "")).strip() for x in tdoc]
-                Dq, _ = encode_runtime(args.bin, g, docs, ROOT / "data/emb" / d / f"quant_{tag}" / "chunks_docs", "d", args.threads, args.workers, 400, args.ctx, "last")
+                Dq, _ = encode_runtime(args.bin, g, docs, ROOT / "data/emb" / d / f"quant_{tag}" / "chunks_docs", "d", args.threads, args.workers, 400, args.ctx, pooling)
                 Dq = Dq.astype(np.float32)
                 if A is not None:
                     Dq = Dq @ A

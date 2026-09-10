@@ -100,25 +100,34 @@ URL parameters: `?ds=<corpus id>` (scifact | scidocs), `backend=auto|webgpu|wasm
 
 ## M5 / VQ client: the vector-quantised encoder next to the scalar one
 
+Since M5 of the VQ WebGPU runtime (`client/vqweb/README.md`) a corpus can offer **several clients** and the load panel has a
 "Client" selector next to the corpus. SciFact ships three (the only corpus with VQ containers so far; jina/legal-cs
 containers do not exist yet, the selector just lists zero or more VQ entries per corpus):
 
 | client id | label | runtime | file | bpw | nDCG@10 test, reference | browser, our run |
 |---|---|---|---|---|---|---|
 | `scalar` | Q2_K scalar, 192.4 MiB (llama.cpp WASM/WebGPU) | `wllama` | `...tabQ2_K.gguf` (9 chunks) | 2.625 | 0.7440 (native llama.cpp) | 0.7425 (WASM) / 0.7413 (WebGPU) |
+| `vq2.0` | VQ 2.10 bpw, 119.5 MiB (WebGPU only) | `vqweb` | `harrier-0.6b-vq2.0-scifact.vqw` (5 chunks) | 2.104 | 0.7380 (torch simulation of the file, test split; 0.7465 on all 1 109 queries) | 0.7375 |
+| `vq1.75` | VQ 1.83 bpw, 105 MiB (WebGPU only) | `vqweb` | `harrier-0.6b-vq1.75-scifact.vqw` (5 chunks) | 1.833 | 0.7109 (simulation, test) | 0.7109 |
 
+**Declaration.** `data/<ds>/meta.json` carries `clients: [{id, label, runtime: "wllama" | "vqweb", model_url, model_file,
 size_bytes, sha256, bpw, ndcg_test, ndcg_browser, note, ...}]` plus `default_client`; the VQ entries also carry the
 per-query reference values (`ndcg_test_per_query` = the exporter's torch simulation of exactly this file, aligned by qid
+from `results/raw/vqweb/perq/<stem>_scifact_train+dev+test.npz`; `ndcg_browser_per_query` and `ndcg_browser_run` from
+`results/raw/browser_local/browser_<id>_vqweb.json`). `data/index.json` lists the same entries in compact form per corpus.
 The top-level `model_file` / `model_url` / `reference` fields stay as they are: a `meta.json` **without** `clients` (an
 older export, or a corpus with only the GGUF) behaves exactly as before, the page synthesises the scalar entry from them.
+The list is written by `demo/vq_clients.py` (`scripts/demo_export.py` regenerates `meta.json` and knows only the GGUF, so
 run this afterwards; it is idempotent):
 
 ```
+.venv/Scripts/python.exe demo/vq_clients.py --ds scifact --chunk \
     --vqw models/vqw/harrier-0.6b-vq2.0-scifact.vqw models/vqw/harrier-0.6b-vq1.75-scifact.vqw
 ```
 
 `--chunk` cuts each container into the same 24 MiB byte-chunk manifest as the GGUF (`model/scifact/<file>.vqw.chunk000 …`
 + `<file>.vqw.chunks.json`, produced by the very function `scripts/demo_export.py: chunk_model`) and copies
+`tokenizer.json` / `tokenizer_config.json` from `models/vqw/` next to it, because `client/vqweb/tokenizer.js` fetches them
 relative to the container URL (`header.tokenizer.file`); without `--chunk` an existing manifest is reused (sha256 checked
 against the container).
 
@@ -133,11 +142,14 @@ next visit, same progress bar and "cached" detection) → `ArrayBuffer` → `con
 uploaded as its own storage buffer) → `tokenizer.js` (`tokenizer.json` next to the container, trimmed-vocabulary byte
 fallback) → `runtime.js` (`requestDevice()` with `shader-f16`, `powerPreference: 'low-power'` = the integrated GPU where
 there is a choice; 13 pipelines) → the file's buffer is released (`container.release()`), exactly the sequence of
+`client/vqweb/bench.js`. The runtime modules are imported lazily from `./vqweb/` (a mount of `client/vqweb/` in
+`serve.py`; a static host needs the directory copied to `demo/vqweb/`), so the scalar client never depends on them.
 
 **Search / verify.** For the VQ client the page hands the **raw query** to `VqwTokenizer.encode()`, which applies the
 **container header's** prompt and `add_eos` (checked against `meta.prompt` at load: `prompt_match`), and L2-normalises the
 runtime's 1024-d output; scores, top-10, qrels highlighting and the nDCG@10 code are shared with the scalar client. The
 stats panel shows the same ids with the runtime's meaning: load = GPU upload + tokenizer + pipelines, backend = "WebGPU
+(vqweb standalone runtime)" with the adapter, memory = the tab's `measureUserAgentSpecificMemory` **plus** the GPU buffers
 (weights + activations for 512 tokens, invisible to the tab's measurement), encode / search last and p50. The verify
 table's reference rows switch to the selected client's own numbers: "Torch simulation, same file" (`ndcg_test`), "Browser,
 our measurement" (`ndcg_browser`, with the adapter and p50 of that run) and the fp16 original; the per-query comparison and
@@ -153,9 +165,12 @@ queries = the simulation on the same queries to 1.5e-8 (20/20 identical, and ide
 p50 156 ms / p95 177 ms, load 5.0 s (download 1.8 s, upload 0.15 s, tokenizer 0.9 s, pipelines 3.9 s), memory 71 MiB in the
 tab + 151 MiB GPU buffers (111 weights + 40 activations); **vq1.75** 0.6126 = simulation to 3e-9 (20/20), p50 157 ms / p95
 221 ms, load 5.0 s, 71 MiB + 137 MiB GPU. The second visit loads the container from OPFS without downloading. (The p50 is
+half the 326 ms of the M3 run because the M4 kernel work landed in `client/vqweb/` in the meantime; both numbers are
 under load.)
 
+## Legal CS over the full production index (`legal.html`)
 
+`legal.html` + `legal.js` is the page for the Czech legal corpus that does **not** search the local 55 071-segment
 sample: the quantised query encoder (the same Q3_K client, 235 MiB, served as the chunk manifest of `data/legal-cs/meta.json`)
 runs in the tab, the 1024-d query vector is POSTed to a **server bridge** that runs a kNN search over the **full
 Elasticsearch index** (`nsoud-decision-segments-v1`, 2 686 582 segments, 13 facets), and in parallel the bridge encodes
@@ -169,6 +184,7 @@ Search form: query (placeholder = `meta.query_hint`), facet checkboxes from `/es
 `court_argument` only; "vše" = all, which sends no facet filter), k = 10 / 20 / 50, optional "od data" (`since`,
 `decision_date >= YYYY-MM-DD`), three example queries from the legal-cs test set.
 
+**Bridge contract** (`demo/es_bridge.py`, mounted by `demo/serve.py --es`; all JSON, errors are non-200 with a text body
 which the page shows in its status line):
 
 | endpoint | body | answer |
@@ -187,10 +203,12 @@ Start it:
 .venv/Scripts/python.exe demo/serve.py --port 8766 --es          # add --es-preload to load the fp32 model at start
 ```
 
+then open http://localhost:8766/legal.html. The Elasticsearch API key is read by the bridge at run time from the fragmea
 deployment env file and **stays on the server**: the browser only ever talks to `/es/*` on this origin, nothing is
 sent anywhere else. URL parameters as `index.html` (`model=`, `threads=`, `backend=`, `autoload=1`, `autoquery=<text>`)
 plus `smoke=1` (headless: autoload + autoquery, then a report `{ok, cosine, overlap10, overlap5, top1_same, hits_left,
 hits_right, latencies, ...}` POSTed to `/smoke` when the server has `--smoke-out`):
+`legal.html?autoload=1&autoquery=promlčení nároku na náhradu škody&smoke=1&backend=wasm&threads=4`.
 
 The model-loading code shared by both pages (chunk manifest -> OPFS assembly -> `wllama.loadModel`, WebGPU probe, GPU
 evidence from the llama.cpp log, timings) lives in `loader.js`; `app.js` and `legal.js` import it.

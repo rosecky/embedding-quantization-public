@@ -169,6 +169,23 @@ rule for any Qwen3 file: ≥ 95 % of its own fp32 with the CI of the difference 
 ≥ 0.75; a "legal" variant only if it beats the generic Czech calibration by ≥ +0.01 with a CI excluding zero, labelled a
 quantization calibrated on Czech (legal) text, never a legal-domain model.
 
+**A second distributable base that tolerates 3 bits (bge-m3, MIT).** The Czech fragility is a property of the
+Qwen3-0.6B decoder-style embedding models, not of Czech. BAAI/bge-m3 (XLM-RoBERTa large, CLS pooling, 1024-d, MIT) was
+indexed the same way with its own fp32 index of the 55 071 segments (fp32 nDCG@10 0.3169; the synthetic test is
+saturated, every base we tried scores 0.317–0.319, so only the ratio, cosine and overlap are informative). With a Czech
+imatrix and `llama-quantize` alone (encoders need a copy with `add_eos_token` cleared for `llama-imatrix` and
+`-b 512 -ub 512`), its clients hold **Q4_K_M + q4_0 table 355 MiB: 99.2 %** (cosine 0.990, top-10 overlap 0.864) and
+**Q3_K + q4_0 table 321 MiB: 98.3 %** (cosine 0.970, overlap 0.780), i.e. the 3-bit file of this encoder is as good as
+jina's and better than any Qwen3-Embedding file below 4.5 bits (R2/R2b, `results/tables/release2.md`). The 4-bit token
+table (half of the file: 250 002 × 1024) costs ≤ 0.2 nDCG points against an 8-bit one on this model, against 1.0 on
+Qwen3-Embedding. The Czech calibration does not hurt English: the same files keep 99.6 / 100.0 % on SciFact. Both are
+released (`honza-rosecky/bge-m3-query-clients`); Q5_K_M (505 MiB, 99.6 %) adds 0.4 points and is not. Across the four
+families measured on this index the quantization tolerance orders as bge-m3 (CLS encoder) ≥ jina-v5-small (retrieval
+fine-tune) > Qwen3-Embedding-0.6B (plain multilingual base); multilingual-e5-small could not be measured (the GGUF
+converter mismatches its tokenizer). For Qwen3-Embedding the 5.7-bit file with the Czech imatrix, Q5_K_M + q4_0 table (385 MiB), is
+released as the higher-quality option for Czech: 99.5 % on the Czech index (cosine 0.983, overlap 0.839), +0.8 points
+over Q4_K_M for 45 MiB (R1).
+
 ### 3.3 Fair comparison with llama.cpp's own quantizer (harrier-0.6b, ~200 MiB)
 
 Same f16 source, same calibration text and token budget (585 × 512 tokens, `-c 512 --chunks 585`), token table Q2_K,

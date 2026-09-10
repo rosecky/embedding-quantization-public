@@ -43,7 +43,7 @@ TEACHERS = {
     "qwen3-4b": dict(hf="Qwen/Qwen3-Embedding-4B",
                      q_prompt=E5_QUERY_PROMPT.rstrip(" "),  # official Qwen3-Embedding prompt ends with 'Query:' (no space); overridden by the model's own ST prompt at load time
                      d_prompt="", max_len=512, notes="Qwen3-4B decoder embedding model, last-token pooling, 2560d"),
-    "me5-small": dict(hf="intfloat/multilingual-e5-small", q_prompt="query: ", d_prompt="passage: ", max_len=512,
+    "me5-small": dict(hf="intfloat/multilingual-e5-small", q_prompt="query: ", d_prompt="passage: ", max_len=512, pooling="mean",
                       notes="small baseline encoder, 384d"),
     # harrier-oss-v1 = the bf16 teachers BitEmbed itself distilled from (same backbones as bitnet-embedding-*)
     "harrier-270m": dict(hf="microsoft/harrier-oss-v1-270m", q_prompt=E5_QUERY_PROMPT,

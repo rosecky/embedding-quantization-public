@@ -119,7 +119,7 @@ def main():
     print("\n".join(L))
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" and not ({"--en", "--r2"} & set(sys.argv)):
     main()
 
 
@@ -161,3 +161,44 @@ def main_en():
 
 if __name__ == "__main__" and "--en" in sys.argv:
     main_en()
+
+
+def main_r2():
+    """Release 2 (R1/R2/R2b, pre-registered 2026-09-10): Qwen3-Embedding-0.6B Q5_K_M and bge-m3 Czech-imatrix clients
+    -> results/tables/release2.md (rows from results/raw/release2_local/results.jsonl, last row per key wins)."""
+    src = ROOT / "results/raw/release2_local/results.jsonl"
+    rel = {}
+    if src.exists():
+        for ln in src.read_text(encoding="utf-8").splitlines():
+            try:
+                r = json.loads(ln)
+            except ValueError:
+                continue
+            rel[(r["teacher"], r["dataset"], r["gguf"])] = r
+    dss = ("legal-cs", "scifact", "nfcorpus", "arguana", "scidocs")
+    L = ["# Vydání 2: Qwen3-Embedding-0.6B Q5_K_M a bge-m3 (česká imatrix) — nativní eval, vlastní fp32 index, test split", "",
+         "Generuje `scripts/release_tables.py --r2`; pre-registrace lab log 2026-09-10 (R1, R2, R2b). Kritérium vydání: ≥ 95 % vlastního fp32, cos ≥ 0,94, překryv ≥ 0,75; „vyšší kvalita“ jen při ≥ +0,5 bodu proti vydanému Q4_K_M.", ""]
+    for teacher in sorted({t for (t, _, _) in rel}):
+        files = sorted({g for (t, _, g) in rel if t == teacher})
+        used = [d for d in dss if any((teacher, d, g) in rel for g in files)]
+        L += [f"## {teacher}", "", "| soubor | MiB | " + " | ".join(f"{d} nDCG@10 (% fp) / cos / překryv" for d in used) + " |", "|---|---|" + "---|" * len(used)]
+        for g in files:
+            cells, mib = [], "–"
+            for d in used:
+                r = rel.get((teacher, d, g))
+                if r:
+                    mib = f"{r['gguf_mib']:.1f}"
+                    cells.append(f"{r['gt_ndcg10']:.4f} ({r['gt_ndcg10'] / r['fp_ndcg10'] * 100:.1f}) / {r['q_cos_fp']:.3f} / {r['fp_top10_overlap']:.3f}")
+                else:
+                    cells.append("–")
+            L.append(f"| `{g}` | {mib} | " + " | ".join(cells) + " |")
+        fps = {d: next((r["fp_ndcg10"] for (t, dd, _), r in rel.items() if t == teacher and dd == d), None) for d in used}
+        L += ["", f"fp32 {teacher}: " + ", ".join(f"{d} {v:.4f}" for d, v in fps.items() if v is not None) + ".", ""]
+    L.append("Zdroje: `results/raw/release2_local/` (OUR_MEASUREMENT, llama-quantize --imatrix; legal-cs = 1 137 syntetických dotazů, saturovaný test: fp32 všech bází 0,317–0,319, vypovídá jen poměr / cos / překryv).")
+    out = ROOT / "results/tables/release2.md"
+    out.write_text("\n".join(L) + "\n", encoding="utf-8")
+    print("\n".join(L))
+
+
+if __name__ == "__main__" and "--r2" in sys.argv:
+    main_r2()
