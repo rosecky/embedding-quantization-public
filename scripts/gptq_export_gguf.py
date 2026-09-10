@@ -108,9 +108,6 @@ def main():
     ap.add_argument("--device", default="cuda")
     ap.add_argument("--no_gguf", action="store_true", help="only quantize on the K-quant grid and evaluate in torch (runtime matches to 0.002); skip writing the file")
     ap.add_argument("--out", default="results/raw/gptq_export")
-    ap.add_argument("--prefix_kv_fp_tokens", type=int, nargs="*", default=None,
-                    help="pre-registered 2026-09-10: also evaluate (torch side) with the query prompt's K/V from the fp model (scripts/prefix_kv.py); "
-                         "one readout per value = prefix tokens from fp (0 = whole prompt, 1 = sink token only); keys *_pkv<n> in torch_ndcg")
     args = ap.parse_args()
     if args.act_order:
         args.static_groups = True
@@ -270,19 +267,6 @@ def main():
         torch_rows[d] = dict(ndcg10=float(np.nanmean(nd)), fp_ndcg10=float(np.nanmean(G.ndcg_at_k(S0, rel, 10))), n=len(te),
                              q_cos_fp=float(np.mean(np.sum(Qq * Qfp_te, 1))),          # continuous readout: resolves effects nDCG cannot
                              emb_mse=float(np.mean(np.sum((Qq - Qfp_te) ** 2, 1))))
-        extra_perq = {}
-        if args.prefix_kv_fp_tokens is not None:   # pre-registered 2026-09-10: the same quantised model with the prompt's K/V from the fp model
-            assert pooling == "last", "prefix-KV readout assumes last-token pooling"
-            from prefix_kv import encode_queries_prefix_kv
-            if "model_fp" not in locals():
-                model_fp = AutoModel.from_pretrained(src, dtype=torch.float16).to(dev).eval()
-            for n_fp in args.prefix_kv_fp_tokens:
-                Qp, P = encode_queries_prefix_kv(model, model_fp, tok, [qp + ds.queries[q] for q in te], dev, A=(A.to(dev) if A is not None else None), n_fp=(None if n_fp <= 0 else n_fp))
-                Sp = mask_self(Qp @ D_T.T, msk); ndp = G.ndcg_at_k(Sp, rel, 10); extra_perq[f"ndcg_pkv{n_fp}"] = ndp
-                torch_rows[d].update({f"ndcg10_pkv{n_fp}": float(np.nanmean(ndp)), f"q_cos_fp_pkv{n_fp}": float(np.mean(np.sum(Qp * Qfp_te, 1))),
-                                      f"prefix_tokens_pkv{n_fp}": int(P), f"cos_plain_pkv{n_fp}": float(np.mean(np.sum(Qp * Qq, 1)))})
-                print(f"[prefix-kv] {d}: fp tokens={P}: nDCG@10={torch_rows[d][f'ndcg10_pkv{n_fp}']:.4f} cos(q, fp)={torch_rows[d][f'q_cos_fp_pkv{n_fp}']:.6f} "
-                      f"(plain {torch_rows[d]['q_cos_fp']:.6f}, Δ {torch_rows[d][f'q_cos_fp_pkv{n_fp}'] - torch_rows[d]['q_cos_fp']:+.6f})", flush=True)
         # cheapest rung of "quantization + fitting": one ridge-fitted linear map that undoes the SYSTEMATIC part of the
         # quantization distortion. Fitted on train+dev queries, scored on test only; at deployment it folds into the
         # document index (d -> d W^T), so the client file and its latency are untouched.
@@ -298,7 +282,7 @@ def main():
                                  test_ndcg10_linfix=float(np.nanmean(G.ndcg_at_k(S_c, rel_t, 10))))
             print(f"[linfix] {d}: test {torch_rows[d]['test_ndcg10']:.4f} -> {torch_rows[d]['test_ndcg10_linfix']:.4f} "
                   f"({torch_rows[d]['test_ndcg10_linfix']-torch_rows[d]['test_ndcg10']:+.4f}) with a linear correction folded into the index", flush=True)
-        np.savez(perq_dir / f"{d}_{tag}_{'+'.join(args.splits)}.npz", ndcg=nd, ndcg_fp=G.ndcg_at_k(S0, rel, 10), **extra_perq)
+        np.savez(perq_dir / f"{d}_{tag}_{'+'.join(args.splits)}.npz", ndcg=nd, ndcg_fp=G.ndcg_at_k(S0, rel, 10))
         print(f"[torch] {d}: GPTQ-{args.type} nDCG@10={torch_rows[d]['ndcg10']:.4f} (fp {torch_rows[d]['fp_ndcg10']:.4f})  "
               f"cos(q, fp)={torch_rows[d]['q_cos_fp']:.6f}  emb MSE={torch_rows[d]['emb_mse']:.6f}", flush=True)
 
