@@ -186,8 +186,8 @@ converter mismatches its tokenizer). For Qwen3-Embedding the 5.7-bit file with t
 released as the higher-quality option for Czech: 99.5 % on the Czech index (cosine 0.983, overlap 0.839), +0.8 points
 over Q4_K_M for 45 MiB (R1). The same file with the English imatrix keeps 99.8 / 100.1 / 100.1 / 100.1 % on SciFact /
 NFCorpus / ArguAna / SciDocs at cosine 0.988–0.992: +0.3 points and +0.010–0.015 cosine over the released Q4_K_M, below the
-pre-registered threshold for a second English file (+0.5 points, or +0.01 cosine on every corpus; SciDocs +0.0097), so it
-is measured but not published.
+pre-registered threshold for a second English file (+0.5 points, or +0.01 cosine on every corpus; SciDocs +0.0097); it is
+published anyway as the "closer to fp32" option on the author's decision, with the numbers, not as a recommendation.
 
 ### 3.3 Fair comparison with llama.cpp's own quantizer (harrier-0.6b, ~200 MiB)
 
