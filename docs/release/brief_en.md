@@ -48,4 +48,4 @@ labels; paired CIs omit calibration-draw variance (~0.01) and between-machine va
 comparison; production-scale index (9.6 M texts) not measured.
 
 **Ask.** Run the verification recipe (README, five commands) on your own index and send the table; or tell me which
-conclusion you would challenge first. Contact: honza.rosecky@gmail.com.
+conclusion you would challenge first. Contact: issues at https://github.com/rosecky/embedding-quantization-public (a contact address follows).

@@ -164,6 +164,7 @@ licence.
 
 ## Contact
 
-Jan Rosecký — honza.rosecky@gmail.com. If you run the recipe on your own index, please open an issue with the table;
+Jan Rosecký, thinletter (https://thinletter.io); a contact address is being set up, until then use the issues of this
+repository. If you run the recipe on your own index, please open an issue with the table;
 that is the most useful thing you can send. If you want a client for your index and your web application, ask for the
 verification step: we measure your index first, the numbers are yours either way.
