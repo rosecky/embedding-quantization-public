@@ -57,10 +57,14 @@ Two limits to read the table with: a paired CI over queries does not contain the
 differences under 0.01 should be read as ties and the cosine to fp32 is the more stable readout. And a statistically
 indistinguishable result is not proven equivalence.
 
-## Released and planned query clients
+## Released query clients
 
 Every client is a **query encoder only** and is compatible with exactly one document encoder and its settings; the
-document vectors stay as they are.
+document vectors stay as they are. Downloads (each repository carries a model card with results, recipe and sha256):
+[harrier-0.6b](https://huggingface.co/honza-rosecky/harrier-0.6b-query-clients) ·
+[Qwen3-Embedding-0.6B](https://huggingface.co/honza-rosecky/qwen3-embedding-0.6b-query-clients) ·
+[bge-m3](https://huggingface.co/honza-rosecky/bge-m3-query-clients) ·
+[harrier-0.6b vector-quantised containers](https://huggingface.co/honza-rosecky/harrier-0.6b-vq-clients).
 
 | client | base model (licence) | compatible document index | status |
 |---|---|---|---|
