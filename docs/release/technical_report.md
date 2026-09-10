@@ -305,6 +305,16 @@ for the GGUF clients it would need a KV-state import in llama.cpp and is not wor
 prediction (cosine ≥ +0.005 on two of three seeds) held by an order of magnitude; the prediction that the first token carries
 at least half of the gain held for nDCG and failed for the cosine.
 
+*Addendum (2026-09-10, evening): the gain depends on the calibration.* All rows above were measured on quantizations
+calibrated on documents (`scifact_corpus_only`), which never see the prompt during calibration. On containers calibrated
+on synthetic queries (the prompt included, which is our recommended recipe at these rates and what the released files
+use) the same prompt K/V gives −0.003 [−0.007; −0.000] on the SciDocs 1.83 bpw file and +0.000 [−0.002; +0.003] on the
+2.10 bpw file, while a document-calibrated SciFact 1.83 bpw file gains +0.011 [+0.003; +0.019] (`scripts/vqw_add_prefix.py
+--sim`, same file, paired). A query-calibrated model has already learnt to reproduce the prompt itself, and its later blocks
+are fitted to its own prompt representation, so the fp K/V help only where the calibration left the prompt out. As it
+stands the result is a repair for calibration without the prompt, not a gain on top of the best recipe. Whether calibrating
+every block with the fp prompt K/V in place combines the two is being measured (pre-registered).
+
 ## 4. Practical guidance
 
 1. Compile both grids, verify against your index, keep the smallest file that passes: nDCG@10 ≥ 95 % of fp32 with the

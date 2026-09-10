@@ -90,3 +90,8 @@ The same readout on the scalar GGUF clients of this model is +0.001 (Q2_K) and 0
 jina-v5-small (prompt 2 tokens) +0.002 / −0.001, not significant. Mechanism: the attention sink on the first token forms
 wrongly in the 2-bit model; an exact first token repairs most of the ranking loss. Not in the published containers yet
 (the runtime has to start the attention from a shipped cache); report §3.7.
+
+*Addendum (2026-09-10, evening).* The rows above are document-calibrated quantisations. On the query-calibrated containers
+(the published recipe) the same prompt K/V gives −0.003 [−0.007; −0.000] (SciDocs 1.83 bpw) and +0.000 [−0.002; +0.003]
+(2.10 bpw): a model calibrated with the prompt reproduces it itself. So far a repair for calibration without the prompt,
+not a gain on top of the best recipe; prefix-aware calibration is being measured (report §3.7, addendum).

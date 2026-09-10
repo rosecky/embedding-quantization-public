@@ -98,6 +98,8 @@ def main():
     ap.add_argument("--cd_probe_source", default="rademacher", choices=["rademacher", "index"],
                     help="global scope only (pre-registered 2026-09-10): 'index' shapes the embedding-space probes by the centred covariance of "
                          "the first dataset's stored document vectors (global_scope.index_probe_sqrt), so the metric is E[J^T Sigma_c J]; tag letter 'c'")
+    ap.add_argument("--cd_probe_shrink", type=float, default=0.0, help="with --cd_probe_source index: shrink the covariance towards the identity at equal trace "
+                                                                         "(amendment 2026-09-10 13:45: the pure covariance overflowed fp16 after two blocks); tag 'b<10*shrink>'")
     ap.add_argument("--cd_pre", type=int, default=0, help="layer-local CD sweeps (G=None) run BEFORE the module-scope sweeps; the peer's tested recipe is --cd_pre 6 --cd_sweeps 6")
     ap.add_argument("--cd_batches", type=int, default=4)
     ap.add_argument("--cd_mlp_only", action="store_true", help="control arm: the CD post-pass refines only gate/up/down; the attention linears keep their GPTQ solution untouched")
@@ -136,13 +138,15 @@ def main():
     tok = AutoTokenizer.from_pretrained(src); tok.padding_side = "right" if pooling == "cls" else "left"
     out_dir = Path(args.out); out_dir.mkdir(parents=True, exist_ok=True)
     # tag letter of the CD scope: '' layer, 'm' module, 'g' global; MLP-only control appends 'm' ('lm' for layer scope so it cannot read as module)
-    cd_letter = {"layer": "", "module": "m", "global": "g"}[args.cd_scope] + ("c" if (args.cd_scope == "global" and args.cd_probe_source == "index") else "") + (("m" if args.cd_scope != "layer" else "lm") if args.cd_mlp_only else "") + ("s" if args.cd_strict else "")
+    cd_letter = {"layer": "", "module": "m", "global": "g"}[args.cd_scope] + (("c" + (f"b{int(round(args.cd_probe_shrink * 10))}" if args.cd_probe_shrink > 0 else "")) if (args.cd_scope == "global" and args.cd_probe_source == "index") else "") + (("m" if args.cd_scope != "layer" else "lm") if args.cd_mlp_only else "") + ("s" if args.cd_strict else "")
     probe_S = None
     if args.cd_sweeps and args.cd_scope == "global" and args.cd_probe_source == "index":
         from global_scope import index_probe_sqrt
         _, D_idx, _, _ = load_emb(args.datasets[0], args.teacher)
-        probe_S = index_probe_sqrt(D_idx, dev)
-        print(f"[cd] global probes shaped by the centred index covariance of {args.datasets[0]} ({D_idx.shape[0]} docs); trace/d = {float(torch.trace(probe_S @ probe_S.t()) / probe_S.shape[0]):.3f}", flush=True)
+        probe_S = index_probe_sqrt(D_idx, dev, shrink=args.cd_probe_shrink)
+        ev = torch.linalg.eigvalsh((probe_S @ probe_S.t()).double())
+        print(f"[cd] global probes shaped by the centred index covariance of {args.datasets[0]} ({D_idx.shape[0]} docs), shrink {args.cd_probe_shrink:g}; "
+              f"trace/d = {float(ev.sum() / ev.numel()):.3f}, max eig {float(ev.max()):.2f}, min eig {float(ev.min()):.4f}, eff. rank {float(ev.sum() ** 2 / (ev ** 2).sum()):.1f}", flush=True)
     gdamp_tag = "" if args.cd_gdamp == 1.0 else "d" + f"{args.cd_gdamp:g}".replace(".", "")  # 0.3 -> d03, 0.1 -> d01, 2 -> d2
     tag = f"{args.type}{('-' + args.hi_type + ('L%d' % args.hi_last if args.hi_last else '') + ''.join('-' + n.split('.')[-1] for n in (args.hi_names or []))) if args.hi_type else ''}-{args.calib}" + (f"-ps{args.n_seq}" if args.per_sample else "") + (f"-t{args.calib_tokens//1000}k" if args.calib_tokens else "") + ("-ao" if args.act_order else "") + ("-sg" if args.static_groups and not args.act_order else "") + (f"-tab{args.table_type}" if args.table_type.upper() != "Q5_0" else "") + ("" if args.rotate == "none" else f"-{args.rotate}") + (f"-2{args.rotate_side}" + (f"r{args.rot_rounds}" if args.rot_rounds != 2 else "") + (f"s{args.rot_seed}" if args.rot_seed else "") if args.rotate_matrix else "") + (f"-cd{args.cd_sweeps}{cd_letter}{('p%d' % args.cd_pre) if args.cd_pre else ''}{gdamp_tag}" if args.cd_sweeps else "") + (f"-L{args.layers}" if args.layers else "")
     out_gguf = ROOT / "models/gguf" / f"{model_key}-gptq-{tag}.gguf"

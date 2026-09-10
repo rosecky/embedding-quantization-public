@@ -60,7 +60,7 @@ sha256: `e5891a4a54351156fa63681aec4c3d864b22d66b2299bd2cec7385543ef56cdf` (2.10
 For comparison on the same index, the scalar GGUF clients of this model: Q3_K 235 MiB 99.2 %, Q2_K (SciDocs-synthetic)
 192 MiB 94.5 %, i.e. the 2.10 bpw container matches the 2.6-bit GGUF at two thirds of its size.
 
-## Known improvement, not yet in these files (measured 2026-09-10)
+## The prompt's K/V in full precision: measured, not an improvement for these files (2026-09-10)
 
 The query prompt is the same 19 tokens in front of every query, so its keys and values in every block can be computed once
 by the full-precision model and shipped with the client (≈ 2.2 MB; the first token alone 112 KB). On the same quantized
@@ -69,6 +69,12 @@ model this gives +0.009 to +0.020 nDCG@10 at 1.84 bpw (three seeds, every paired
 wrongly, an exact first token repairs it). The containers here do not carry the prompt K/V yet and the runtime does not read
 it yet; the numbers are in the report (§3.7) and in `results/tables/prefix_kv.md` of the public repository. On the scalar
 GGUF clients the same trick is worth +0.001 and is not planned.
+
+**Addendum (same day, evening):** those gains were measured on quantizations calibrated on documents. The files in this
+repository are calibrated on synthetic queries (the prompt included), and on them the same prompt K/V gives −0.003
+[−0.007; −0.000] (1.83 bpw) and +0.000 [−0.002; +0.003] (2.10 bpw): a model calibrated with the prompt already reproduces
+it. So this is not an improvement pending for these files; whether calibrating with the exact prompt in place changes
+that is being measured, and the files here will only be replaced if it does (≥ +0.005 nDCG@10, paired CI above zero).
 
 ## Licence
 

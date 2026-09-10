@@ -10,6 +10,23 @@ The technical report is in [`docs/release/technical_report.md`](docs/release/tec
 files are described in [`docs/release/model_card_harrier-0.6b-query-clients.md`](docs/release/model_card_harrier-0.6b-query-clients.md).
 Every number below has a generated table under `results/tables/`; the research log behind them (Czech) is not part of the public repository.
 
+## Where the smallest files stand
+
+nDCG@10 against the model's own fp32 index, harrier-0.6b on SciFact (test split, 300 queries, fp32 0.7559). Our
+vector-quantised rows are torch simulations of the container with synthetic-query calibration (the container format and
+its WebGPU runtime are not in this repository, see below); the released SciDocs files of the same recipe (127 / 113 MiB)
+hold 94.7 / 91.3 % and were verified in the browser to ±0.001. BitNet-270m and the llama.cpp files are measured as files.
+
+| client | MiB | % of fp32 | what it is |
+|---|---|---|---|
+| harrier-0.6b fp16, the server model | 1 143 | 100 % | reference |
+| llama.cpp Q3_K with imatrix | 235 | 98.9 % | the free baseline; our GPTQ export ties it |
+| llama.cpp IQ2_XS, its smallest format | 178 | 93.9 % | below this size llama.cpp has nothing |
+| BitNet-270m, ternary, trained (Microsoft) | 140 | 97.0 % | the strongest small competitor; needs training |
+| **VQ 2.1 bits per weight** | **120** | **98.2 %** | ours: post-training, no retraining, WebGPU runtime |
+| **VQ 1.8 bits per weight** | **105** | **96.5 %** | ours |
+| **VQ 1.6 bits per weight** | **91** | **93.6 %** | ours, the smallest working client |
+
 **What is in this repository and what is not.** This repository contains the scalar pipeline (GPTQ onto llama.cpp's
 K-quant grids, `llama-quantize --imatrix` as the first-arm baseline), the verification harness, the browser benchmark of
 the scalar files, the demo, the tables and the research log. It does **not** contain our vector-quantised container
