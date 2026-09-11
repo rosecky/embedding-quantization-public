@@ -99,6 +99,9 @@ not a gain on top of the best recipe; prefix-aware calibration is being measured
 *Addendum 2 (2026-09-11).* Prefix-aware calibration (every block calibrated on the query tokens with the fp prompt K/V as the
 past, the prefix shipped) combines the two on SciFact at 1.83 bpw: +0.013 / +0.009 / +0.008 nDCG@10 over the same-seed
 synthetic-query-calibrated quantisation (three rotation seeds, every paired CI above zero; 95.3 → 96.5 % of fp32, cosine
-0.90 → 0.92). Not detectable at 2.10 bpw (+0.002), at 1.58 bpw (+0.001) or on SciDocs at 1.83 bpw (+0.002 / +0.004 / +0.000,
-three seeds, 500 queries). Such a container needs the prefix at inference (75–84 % without it). The published files are
-unchanged; the recipe is in the runtime (report §3.7, addendum 2).
+0.90 → 0.92). Not detectable at 2.10 bpw (+0.002), at 1.58 bpw (+0.001), on SciDocs at 1.83 bpw (+0.002 / +0.004 / +0.000,
+three seeds, 500 queries), on NFCorpus (−0.000 / +0.002, 3 237 queries) or on ArguAna (+0.001 / −0.009). The cosine to fp32
+rises 0.011–0.017 everywhere; the ranking follows only on SciFact, and per query it is a redistribution (rank-1 queries lose,
+rank-2–3 and outside-top-10 queries gain) that sums to +0.010 there and to zero elsewhere. Such a container needs the prefix
+at inference (75–84 % without it). The published files are unchanged; the recipe is in the runtime as an option (report §3.7,
+addendum 2).

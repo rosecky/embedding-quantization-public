@@ -321,9 +321,13 @@ K/V as the past (what a client with the shipped prefix computes), and shipping t
 +0.016] nDCG@10 over the best synthetic-query-calibrated quantization of the same seed (95.3 → 96.5 % of fp32; cosine
 0.90 → 0.92); the first token alone from fp32 does as well as the whole prompt. It is not detectable elsewhere: 2.1 bpw
 +0.002 [−0.004; +0.009] (there is little left to repair at 97.5 %), 1.6 bpw +0.001 [−0.008; +0.010], SciDocs 1.8 bpw
-+0.002 / +0.004 / +0.000 on three seeds (500 title-like queries). A model calibrated this way needs the prefix at inference
-(without it, 75–84 % of fp32). The published containers are therefore unchanged; the recipe stays available in the runtime
-for deployments where the query distribution resembles SciFact's.
++0.002 / +0.004 / +0.000 on three seeds (500 title-like queries), NFCorpus −0.000 [−0.003; +0.002] / +0.002 (3 237 queries,
+two seeds), ArguAna +0.001 / −0.009 (two seeds; the plain file is at 98–100 %). The cosine to fp32 rises by 0.011–0.017 on
+every corpus; the ranking follows only on SciFact. Per query the change is a redistribution, not a uniform repair: queries
+whose relevant document sat at rank 2–3 or outside the top 10 gain, queries at rank 1 lose, and on SciFact that sums to
++0.010 while elsewhere it sums to zero. A model calibrated this way needs the prefix at inference (without it, 75–84 % of
+fp32). The published containers are therefore unchanged; the recipe stays in the runtime as an option, not a default, and
+we do not have a mechanism for why SciFact alone benefits.
 
 ## 4. Practical guidance
 
