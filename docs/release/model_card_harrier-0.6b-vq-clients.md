@@ -76,6 +76,12 @@ repository are calibrated on synthetic queries (the prompt included), and on the
 it. So this is not an improvement pending for these files; whether calibrating with the exact prompt in place changes
 that is being measured, and the files here will only be replaced if it does (≥ +0.005 nDCG@10, paired CI above zero).
 
+**Addendum 2 (2026-09-11):** measured. Calibrating every block with the exact prompt in place and shipping it gives
++0.008 to +0.013 nDCG@10 over the best query-calibrated quantization at 1.83 bpw on SciFact (three seeds, every paired CI
+above zero), but on SciDocs, the corpus of these files, +0.002 / +0.004 / +0.000 on three seeds, and nothing at 2.10 bpw.
+The release rule is not met, so **these files stay as they are**; the recipe lives in the runtime for deployments whose
+queries look like SciFact's. Numbers: report §3.7 addendum 2, `docs/release/vq_results.md` §6.
+
 ## Licence
 
 Weights derive from `microsoft/harrier-oss-v1-0.6b` (MIT) and are released under MIT; calibration text: synthetic queries

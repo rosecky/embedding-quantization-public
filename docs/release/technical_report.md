@@ -315,6 +315,16 @@ are fitted to its own prompt representation, so the fp K/V help only where the c
 stands the result is a repair for calibration without the prompt, not a gain on top of the best recipe. Whether calibrating
 every block with the fp prompt K/V in place combines the two is being measured (pre-registered).
 
+*Addendum 2 (2026-09-11): prefix-aware calibration.* Calibrating every block on the query tokens only, with the fp prompt's
+K/V as the past (what a client with the shipped prefix computes), and shipping that prefix does combine the two on the
+1.8-bit vector grid: on SciFact, three rotation seeds, +0.013 [+0.006; +0.021], +0.009 [+0.002; +0.017] and +0.008 [+0.001;
++0.016] nDCG@10 over the best synthetic-query-calibrated quantization of the same seed (95.3 → 96.5 % of fp32; cosine
+0.90 → 0.92); the first token alone from fp32 does as well as the whole prompt. It is not detectable elsewhere: 2.1 bpw
++0.002 [−0.004; +0.009] (there is little left to repair at 97.5 %), 1.6 bpw +0.001 [−0.008; +0.010], SciDocs 1.8 bpw
++0.002 / +0.004 / +0.000 on three seeds (500 title-like queries). A model calibrated this way needs the prefix at inference
+(without it, 75–84 % of fp32). The published containers are therefore unchanged; the recipe stays available in the runtime
+for deployments where the query distribution resembles SciFact's.
+
 ## 4. Practical guidance
 
 1. Compile both grids, verify against your index, keep the smallest file that passes: nDCG@10 ≥ 95 % of fp32 with the

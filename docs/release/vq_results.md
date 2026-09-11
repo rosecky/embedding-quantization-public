@@ -95,3 +95,10 @@ wrongly in the 2-bit model; an exact first token repairs most of the ranking los
 (the published recipe) the same prompt K/V gives −0.003 [−0.007; −0.000] (SciDocs 1.83 bpw) and +0.000 [−0.002; +0.003]
 (2.10 bpw): a model calibrated with the prompt reproduces it itself. So far a repair for calibration without the prompt,
 not a gain on top of the best recipe; prefix-aware calibration is being measured (report §3.7, addendum).
+
+*Addendum 2 (2026-09-11).* Prefix-aware calibration (every block calibrated on the query tokens with the fp prompt K/V as the
+past, the prefix shipped) combines the two on SciFact at 1.83 bpw: +0.013 / +0.009 / +0.008 nDCG@10 over the same-seed
+synthetic-query-calibrated quantisation (three rotation seeds, every paired CI above zero; 95.3 → 96.5 % of fp32, cosine
+0.90 → 0.92). Not detectable at 2.10 bpw (+0.002), at 1.58 bpw (+0.001) or on SciDocs at 1.83 bpw (+0.002 / +0.004 / +0.000,
+three seeds, 500 queries). Such a container needs the prefix at inference (75–84 % without it). The published files are
+unchanged; the recipe is in the runtime (report §3.7, addendum 2).
