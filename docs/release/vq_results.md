@@ -105,3 +105,11 @@ rises 0.011–0.017 everywhere; the ranking follows only on SciFact, and per que
 rank-2–3 and outside-top-10 queries gain) that sums to +0.010 there and to zero elsewhere. Such a container needs the prefix
 at inference (75–84 % without it). The published files are unchanged; the recipe is in the runtime as an option (report §3.7,
 addendum 2).
+
+*Addendum 3 (2026-09-11).* The Czech legal index (jina-v5-small, 1.83 bpw) is the second corpus with the gain: +0.007 /
++0.016 / +0.010 over the same-seed synthetic-query-calibrated quantisation (three seeds, two CIs above zero), with a
+two-token prompt. SciFact and the legal index share query-shaped calibration (full sentences like the real queries);
+SciDocs (titles) and NFCorpus (three-word phrases) do not. SciDocs re-calibrated on title-shaped queries: 94.3 % of fp32 on
+two of three seeds, +0.008* / +0.004 / −0.002 against the same-calibrated plain, exported file +0.0045 [−0.002; +0.011]
+against the released container (browser = simulation to −0.0002, p50 69 ms) — half the SciFact effect, not enough to replace
+the file (report §3.7, addendum 3).

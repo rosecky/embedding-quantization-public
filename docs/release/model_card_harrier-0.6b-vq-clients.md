@@ -80,8 +80,11 @@ that is being measured, and the files here will only be replaced if it does (≥
 +0.008 to +0.013 nDCG@10 over the best query-calibrated quantization at 1.83 bpw on SciFact (three seeds, every paired CI
 above zero), but on SciDocs, the corpus of these files, +0.002 / +0.004 / +0.000 on three seeds, nothing on NFCorpus
 (−0.000 / +0.002) or ArguAna (+0.001 / −0.009), and nothing at 2.10 bpw. The cosine to fp32 rises everywhere; the ranking
-follows only on SciFact, and we do not know why. The release rule is not met, so **these files stay as they are**; the
-recipe lives in the runtime as an option. Numbers: report §3.7 addendum 2, `docs/release/vq_results.md` §6.
+follows on SciFact and on a Czech legal index (+0.007 / +0.016 / +0.010, jina-v5-small), i.e. where the synthetic
+calibration queries have the shape of the real ones. Re-calibrating SciDocs on title-shaped queries brings the prefix-aware
+1.83 bpw container to 93.3–94.3 % (browser-verified), +0.0045 [−0.002; +0.011] over the file here: not enough for the
+release rule, so **these files stay as they are**; the recipe lives in the runtime as an option. Numbers: report §3.7
+addenda 2–3, `docs/release/vq_results.md` §6.
 
 ## Licence
 

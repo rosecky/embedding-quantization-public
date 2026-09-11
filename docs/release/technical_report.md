@@ -326,8 +326,22 @@ two seeds), ArguAna +0.001 / −0.009 (two seeds; the plain file is at 98–100 
 every corpus; the ranking follows only on SciFact. Per query the change is a redistribution, not a uniform repair: queries
 whose relevant document sat at rank 2–3 or outside the top 10 gain, queries at rank 1 lose, and on SciFact that sums to
 +0.010 while elsewhere it sums to zero. A model calibrated this way needs the prefix at inference (without it, 75–84 % of
-fp32). The published containers are therefore unchanged; the recipe stays in the runtime as an option, not a default, and
-we do not have a mechanism for why SciFact alone benefits.
+fp32). The published containers are therefore unchanged; the recipe stays in the runtime as an option, not a default.
+
+*Addendum 3 (2026-09-11, later): a second corpus with the gain, and what the two have in common.* On the Czech legal
+index (jina-v5-small, 1.83 bpw, three seeds) prefix-aware calibration gives +0.007 [−0.002; +0.016], +0.016 [+0.005;
++0.028] and +0.010 [+0.000; +0.020] nDCG@10 over the same-seed synthetic-query-calibrated quantization (cosine 0.85 →
+0.88), although jina's prompt is two tokens, so the effect is not about the prompt's length. What SciFact and the legal
+index share, and SciDocs / NFCorpus do not, is that the real queries have the shape of the synthetic calibration queries
+(full sentences: claims, questions), whereas SciDocs queries are paper titles and NFCorpus queries three-word phrases.
+Re-calibrating SciDocs on 3 000 title-shaped queries (corpus titles, none equal to a test query) moves the prefix-aware
+container to 94.3 % of fp32 on two of three seeds (+0.008 [+0.003; +0.014], +0.004, −0.002 against the same-calibrated
+plain; +0.007 / +0.008 / +0.002 against the released recipe; the exported file +0.0045 [−0.002; +0.011] against the released
+container, browser-verified to −0.0002). Title-shaped calibration alone, without the prefix, does not help. The reading we
+carry: calibrating only on query tokens with the exact prompt in place sharpens the calibration onto the calibration
+queries, which pays off when those have the shape of the real ones and does nothing otherwise. Half the size of the
+SciFact effect and one seed against, so the SciDocs file is not replaced; the shape rule for synthetic calibration queries
+is the practical lesson.
 
 ## 4. Practical guidance
 
